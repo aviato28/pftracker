@@ -8,24 +8,24 @@ import UIKit
 /// hPa (×10) at the boundary. Not available on iPads or very old iPhones —
 /// `CMAltimeter.isRelativeAltitudeAvailable()` gates that.
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private let altimeter = CMAltimeter()
-  private var eventSink: FlutterEventSink?
 
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
 
-    let controller = window?.rootViewController as! FlutterViewController
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+
     let channel = FlutterEventChannel(
       name: "pftracker/barometer",
-      binaryMessenger: controller.binaryMessenger
+      binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
     channel.setStreamHandler(BarometerStreamHandler(altimeter: altimeter))
-
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
 
