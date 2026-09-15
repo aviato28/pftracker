@@ -73,15 +73,18 @@ back to a longitude-based approximation otherwise.
   every Android device has a pressure sensor (all recent iPhones do) — the
   app falls back to GPS-only altitude when it's absent.
 
-## What's not yet verified
+## Build status
 
-This was built in a sandbox with no Android SDK or Xcode available, so:
-- `flutter analyze` and `flutter test` pass, but the app has **not been
-  built or run on a device/emulator**.
-- The native Kotlin (`android/.../MainActivity.kt`) and Swift
-  (`ios/Runner/AppDelegate.swift`) barometer bridges are unverified —
-  compile and test them on a real device (barometer behavior can't be
-  trusted on an emulator anyway).
+- **Android**: `flutter build apk --debug` succeeds (verified in this
+  sandbox with a manually installed Android SDK — Gradle/AGP/Kotlin
+  versions are current as of the last build). Not yet run on a device.
+- **iOS**: unverified — this sandbox has no macOS/Xcode. The Xcode project
+  was regenerated from a current `flutter create` (scene-based lifecycle),
+  and `AppDelegate.swift`'s barometer channel setup follows Flutter's own
+  `FlutterImplicitEngineDelegate` example, but neither has been compiled.
+- Either way, **run on a real device before trusting it in flight**: GPS
+  and barometer behavior can't be trusted on an emulator/simulator, and
+  the whole point of the app is airplane-mode GPS tracking.
 - The AeroDataBox response parsing is best-effort; confirm against a real
   API response.
 
