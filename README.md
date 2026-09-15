@@ -21,6 +21,12 @@ dependency at any point, ever.
 2. **In the air** (needs nothing): the app streams GPS fixes, derives
    altitude/speed/heading/ETA/etc. locally, and draws your position on the
    bundled offline map.
+3. **If the app gets killed mid-flight** (an accidental swipe-away, Android
+   reclaiming memory, a battery-optimization kill) — relaunching offers to
+   resume the same session: elapsed time keeps counting from the original
+   start, GPS reacquires the real position immediately, and only the
+   flown-track breadcrumb restarts from that point rather than from
+   departure. See `data/session/active_session_repository.dart`.
 
 ## Architecture
 
@@ -39,6 +45,8 @@ lib/
                   AeroDataBox/RapidAPI implementation).
     basemap/      Loads the bundled world land outline into `flutter_map`
                   `Polygon`s, ready to render — see "The map" below.
+    session/      Persists the in-progress route + start time so a killed
+                  app can offer to resume tracking on relaunch.
     settings/     Persisted user preferences (shared_preferences).
   state/          FlightSessionController: owns the live session, merges
                   GPS + barometer readings, exposes computed stats.
@@ -55,9 +63,10 @@ lib/
 ## The map
 
 `presentation/tracking/world_map_view.dart` renders a bundled land outline
-(`assets/data/world_land.json`, ~75KB, simplified from Natural Earth 1:110m)
-as `flutter_map` `Polygon`s — a basic vector map, not raster tiles, so
-there's no tile server, no download step, and nothing that can fail to
+(`assets/data/world_land.json`, ~1MB, simplified from Natural Earth
+1:50m — ~60k coastline points) as `flutter_map` `Polygon`s, plus a lat/lon
+graticule for texture at any zoom — a basic vector map, not raster tiles,
+so there's no tile server, no download step, and nothing that can fail to
 load. Pan/zoom/fit-to-route use `flutter_map`'s own camera and gesture
 handling rather than a hand-rolled one — an earlier version drove a plain
 `InteractiveViewer` with a manually-computed transform, which is what
@@ -65,6 +74,15 @@ caused the map to render but not be pannable ("stuck in a random
 position"): setting `TransformationController.value` directly fights that
 widget's internal pan/zoom clamping. `flutter_map`'s `CameraFit.bounds` and
 default interaction handling do the same job correctly.
+
+`WorldMapView` only takes the (static) `FlightRoute`, not a stream of
+position updates — the land outline, graticule, and static route line are
+built once. Only two small `Consumer<FlightSessionController>`-scoped
+layers (the flown-track polyline and the aircraft marker) rebuild on each
+GPS tick. Earlier, the whole map (including re-simplifying ~60k points of
+land geometry) rebuilt on every GPS sample because an ancestor `Consumer`
+wrapped the entire widget — the periodic jank that caused is a good example
+of why `Consumer`/`Selector` scope should be as narrow as possible.
 
 ## Data sources
 
@@ -122,10 +140,11 @@ as ascending bars, derived from the GPS fix's horizontal accuracy.
   `FlutterImplicitEngineDelegate` example, but neither has been compiled.
 - **Run on a real device before trusting it in flight**: GPS and barometer
   behavior can't be trusted on an emulator/simulator, and the whole point
-  of the app is airplane-mode GPS tracking. In particular, please confirm
-  the map now pans/zooms normally — that was the one bug in the previous
-  build that a from-a-distance rebuild (no device here) can't fully rule
-  out on its own.
+  of the app is airplane-mode GPS tracking. Confirmed fixed on-device so
+  far: map pan/zoom, the stats sheet scrolling with everything toggled on.
+  Reported but not yet re-confirmed on-device: general map smoothness
+  (addressed by no longer rebuilding the whole map on each GPS tick — see
+  "The map" above) and app-kill resume (new — see "How it works" above).
 - The AeroDataBox response parsing is best-effort; confirm against a real
   API response.
 

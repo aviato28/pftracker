@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../data/airports/airport_repository.dart';
 import '../../data/routes/route_lookup_service.dart';
+import '../../data/session/active_session_repository.dart';
 import '../../data/settings/app_settings.dart';
 import '../../domain/airport.dart';
 import '../../domain/flight_route.dart';
@@ -37,9 +38,53 @@ class _SetupScreenState extends State<SetupScreen> {
   String? _lookupError;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForActiveSession());
+  }
+
+  @override
   void dispose() {
     _flightNumberController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkForActiveSession() async {
+    final repository = ActiveSessionRepository(airportRepository: _airportRepository);
+    final session = await repository.load();
+    if (session == null || !mounted) return;
+
+    final elapsed = DateTime.now().toUtc().difference(session.sessionStartUtc);
+    final hours = elapsed.inHours;
+    final minutes = elapsed.inMinutes.remainder(60);
+
+    final resume = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Resume tracking?'),
+        content: Text(
+          '${session.route.label} was still tracking '
+          '(started ${hours}h ${minutes}m ago) when the app closed.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Discard')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Resume')),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+    if (resume == true) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => TrackingScreen(route: session.route, resumeStartUtc: session.sessionStartUtc),
+        ),
+      );
+    } else {
+      await repository.clear();
+    }
   }
 
   void _tryBuildManualRoute() {

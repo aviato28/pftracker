@@ -31,6 +31,7 @@ class FlightSessionController extends ChangeNotifier {
   BarometerAvailability barometerAvailability = BarometerAvailability.unknown;
   String? locationError;
   bool get isTracking => _positionSub != null;
+  DateTime? get sessionStartUtc => _sessionStartUtc;
 
   FlightSessionController({
     required this.settings,
@@ -54,7 +55,13 @@ class FlightSessionController extends ChangeNotifier {
     );
   }
 
-  Future<bool> start(FlightRoute flightRoute) async {
+  /// Starts (or resumes) tracking. Pass [resumeSessionStartUtc] — the
+  /// original start time of a session that was persisted before the app
+  /// got killed — so elapsed time keeps counting from departure rather
+  /// than restarting at zero. GPS reacquires the current position
+  /// immediately either way; only the flown-track breadcrumb is lost,
+  /// starting fresh from wherever the aircraft is now.
+  Future<bool> start(FlightRoute flightRoute, {DateTime? resumeSessionStartUtc}) async {
     bool granted;
     try {
       granted = await _locationService.ensurePermission();
@@ -71,7 +78,7 @@ class FlightSessionController extends ChangeNotifier {
     }
 
     route = flightRoute;
-    _sessionStartUtc = DateTime.now().toUtc();
+    _sessionStartUtc = resumeSessionStartUtc ?? DateTime.now().toUtc();
     _samples.clear();
     locationError = null;
 

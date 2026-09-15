@@ -1,9 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../data/session/active_session_repository.dart';
 import '../../data/settings/app_settings.dart';
 import '../../domain/flight_route.dart';
-import '../../domain/geo_utils.dart';
 import '../../state/flight_session_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/gps_status_pill.dart';
@@ -12,7 +14,13 @@ import 'world_map_view.dart';
 
 class TrackingScreen extends StatefulWidget {
   final FlightRoute route;
-  const TrackingScreen({super.key, required this.route});
+
+  /// The original start time of a session being resumed after the app
+  /// was killed and relaunched — see [ActiveSessionRepository]. Null for
+  /// a normal fresh start.
+  final DateTime? resumeStartUtc;
+
+  const TrackingScreen({super.key, required this.route, this.resumeStartUtc});
 
   @override
   State<TrackingScreen> createState() => _TrackingScreenState();
@@ -20,6 +28,7 @@ class TrackingScreen extends StatefulWidget {
 
 class _TrackingScreenState extends State<TrackingScreen> {
   late final FlightSessionController _controller;
+  final _activeSessionRepository = ActiveSessionRepository();
   bool _startAttempted = false;
 
   @override
@@ -32,12 +41,22 @@ class _TrackingScreenState extends State<TrackingScreen> {
   Future<void> _start() async {
     if (_startAttempted) return;
     _startAttempted = true;
-    final ok = await _controller.start(widget.route);
-    if (!ok && mounted) {
+    final ok = await _controller.start(widget.route, resumeSessionStartUtc: widget.resumeStartUtc);
+    if (ok) {
+      final startUtc = _controller.sessionStartUtc;
+      if (startUtc != null) {
+        unawaited(_activeSessionRepository.save(route: widget.route, sessionStartUtc: startUtc));
+      }
+    } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_controller.locationError ?? 'Could not start tracking.')),
       );
     }
+  }
+
+  void _endTracking() {
+    unawaited(_activeSessionRepository.clear());
+    Navigator.of(context).maybePop();
   }
 
   @override
@@ -50,12 +69,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
   Widget build(BuildContext context) {
     final route = widget.route;
     final settings = context.watch<AppSettings>();
-    final routePath = GeoUtils.greatCirclePath(
-      route.departure.lat,
-      route.departure.lon,
-      route.arrival.lat,
-      route.arrival.lon,
-    );
     final topInset = MediaQuery.paddingOf(context).top;
 
     return ChangeNotifierProvider.value(
@@ -67,18 +80,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
           children: [
             Positioned.fill(
               bottom: 0,
-              child: Consumer<FlightSessionController>(
-                builder: (context, controller, _) {
-                  final stats = controller.stats;
-                  return WorldMapView(
-                    routeLatLon: routePath,
-                    traveledLatLon: controller.samples.map((s) => [s.lat, s.lon]).toList(),
-                    currentLat: stats?.lat,
-                    currentLon: stats?.lon,
-                    headingDegrees: stats?.headingDegrees,
-                  );
-                },
-              ),
+              child: WorldMapView(route: route),
             ),
 
             // back button
@@ -87,7 +89,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
               left: 20,
               child: _HudButton(
                 icon: Icons.arrow_back_ios_new_rounded,
-                onTap: () => Navigator.of(context).maybePop(),
+                onTap: _endTracking,
               ),
             ),
 
