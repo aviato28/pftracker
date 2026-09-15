@@ -373,6 +373,7 @@ class _RoutePreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final units = context.watch<AppSettings>().unitSystem;
     final distanceKm = GeoUtils.distanceMeters(
           route.departure.lat,
           route.departure.lon,
@@ -380,6 +381,7 @@ class _RoutePreviewCard extends StatelessWidget {
           route.arrival.lon,
         ) /
         1000.0;
+    final displayDistance = units.distanceFromKm(distanceKm).round();
     final hours = distanceKm / _typicalCruiseKmh;
     final h = hours.floor();
     final m = ((hours - h) * 60).round();
@@ -416,7 +418,7 @@ class _RoutePreviewCard extends StatelessWidget {
             TextSpan(
               style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
               children: [
-                TextSpan(text: '${distanceKm.round()} km · est. '),
+                TextSpan(text: '$displayDistance ${units.distanceUnit} · est. '),
                 TextSpan(
                   text: '${h}h ${m.toString().padLeft(2, '0')}m',
                   style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),

@@ -94,12 +94,20 @@ of why `Consumer`/`Selector` scope should be as narrow as possible.
   each airport's coordinates (via `timezonefinder`), not sourced from any
   API.
 - **Map** (`assets/data/world_land.json`): land polygon outlines derived
-  from [Natural Earth](https://www.naturalearthdata.com/) 1:110m data
+  from [Natural Earth](https://www.naturalearthdata.com/) 1:50m data
   (public domain, no attribution required).
 - **Fonts** (`assets/fonts/`): Manrope and JetBrains Mono, bundled as
   variable-font files rather than fetched from Google Fonts at runtime —
   this app has to render correctly with zero connectivity, so nothing can
   depend on a font CDN.
+- **App icon / splash** (`assets/icon/`): a plain filled chevron (the same
+  mark used as the map's aircraft marker) on the app's dark background,
+  generated at 1024×1024 with Pillow — no external design tool. Wired up
+  via `flutter_launcher_icons` and `flutter_native_splash` (dev
+  dependencies; see the `flutter_launcher_icons:`/`flutter_native_splash:`
+  blocks at the bottom of `pubspec.yaml`). Re-run `dart run
+  flutter_launcher_icons` / `dart run flutter_native_splash:create` after
+  changing either source image.
 - **Flight-number lookup**: `AeroDataBoxRouteLookupService` calls AeroDataBox
   via RapidAPI. It needs an API key (enter it in Settings) — without one,
   manual airport entry still works fully. The response parsing follows
@@ -116,8 +124,57 @@ at (altitude and speed, by default) get the large "hero" tile treatment on
 the tracking screen; everything else enabled sits in a compact grid below.
 Local time / timezone math uses each airport's real IANA timezone
 (DST-aware) when known, falling back to a longitude-based approximation
-otherwise. The tracking screen's GPS status pill also shows signal strength
-as ascending bars, derived from the GPS fix's horizontal accuracy.
+otherwise.
+
+Speed/distance/altitude render in one of three unit presets (Settings →
+Units, see `domain/unit_system.dart`): Metric (km/h, km, m), Imperial
+(mph, mi, ft), or Aviation (kt, nm, ft). Vertical speed stays ft/min in
+every preset, matching real aircraft instruments even in metric-unit
+countries. `FlightStatsEngine` itself always computes in one canonical
+set of units (feet, km/h, km) — the chosen preset only affects display.
+
+The tracking screen's GPS status pill shows signal strength as ascending
+bars (from the fix's horizontal accuracy) and distinguishes three states —
+see "GPS reliability" below.
+
+## GPS reliability
+
+Two changes address "GPS works fine on the ground but stops capturing
+in flight":
+
+- **`forceLocationManager: true`** (`data/location/location_service.dart`,
+  Android only). By default geolocator uses Google Play Services'
+  `FusedLocationProviderClient`, a hybrid provider that leans on wifi/cell
+  signal confidence and can simply stop reporting fixes when those are
+  absent and GPS reception is weak — exactly the in-flight, airplane-mode,
+  metal-fuselage-attenuated scenario this app lives in. Forcing the legacy
+  `LocationManager` instead talks to the raw GPS chip directly. Also
+  enabled `useMSLAltitude: true`, which reads mean-sea-level altitude from
+  the chip's own NMEA sentences (only available via the raw provider) —
+  closer to an aviation altimeter reference than the default WGS84
+  ellipsoid altitude.
+- **Explicit signal states** instead of silently showing stale numbers
+  forever: `FlightSessionController.gpsSignalState` is `acquiring` (no fix
+  yet — a raw-GPS cold start without assisted-GPS data can take longer
+  than FLP's, especially in airplane mode), `active`, or `lost` (had a fix,
+  nothing for 20+ seconds — e.g. weak reception away from a window). The
+  status pill reflects this instead of just going quiet.
+
+**What no code can fix**: physically, a metal fuselage and (especially)
+UV/heat-reflective window coatings on many aircraft attenuate GPS signal
+significantly — some seats/aircraft may simply never get a fix mid-flight,
+same as any GPS-based flight tracker. And **neither Android nor iOS lets a
+normal app survive an explicit swipe-away kill in the task switcher** —
+that's deliberate OS policy, not something this app can override. What
+this app does instead: the foreground service (with its persistent
+notification) makes an *accidental* background kill (Doze/App Standby,
+memory pressure) much less likely while merely backgrounded/screen-locked,
+and the session-resume feature (above) makes recovery from a kill, when it
+does happen, as painless as possible. If reliability is still an issue on
+a specific device, check that device's battery-optimization settings for
+this app — Samsung/OnePlus/Xiaomi etc. layer their own aggressive app-sleep
+policies on top of stock Android's, and "unmonitored"/"never sleep" for
+this app is worth setting manually.
 
 ## Permissions
 
@@ -142,9 +199,10 @@ as ascending bars, derived from the GPS fix's horizontal accuracy.
   behavior can't be trusted on an emulator/simulator, and the whole point
   of the app is airplane-mode GPS tracking. Confirmed fixed on-device so
   far: map pan/zoom, the stats sheet scrolling with everything toggled on.
-  Reported but not yet re-confirmed on-device: general map smoothness
-  (addressed by no longer rebuilding the whole map on each GPS tick — see
-  "The map" above) and app-kill resume (new — see "How it works" above).
+  Not yet re-confirmed on-device: map rebuild/jank fix, app-kill resume,
+  in-flight GPS capture via `forceLocationManager` (see "GPS reliability"
+  above) — that last one in particular needs a real flight to know for
+  sure.
 - The AeroDataBox response parsing is best-effort; confirm against a real
   API response.
 

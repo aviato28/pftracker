@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/flight_stats.dart';
 import '../../domain/stat_id.dart';
+import '../../domain/unit_system.dart';
 import 'stat_formatting.dart';
 import 'stat_tile.dart';
 
@@ -22,8 +23,14 @@ const _heroPriority = [
 class StatsPanel extends StatelessWidget {
   final FlightStats? stats;
   final Set<StatId> enabledStats;
+  final UnitSystem unitSystem;
 
-  const StatsPanel({super.key, required this.stats, required this.enabledStats});
+  const StatsPanel({
+    super.key,
+    required this.stats,
+    required this.enabledStats,
+    required this.unitSystem,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -73,12 +80,12 @@ class StatsPanel extends StatelessWidget {
   }
 
   Widget _heroTile(StatId id) {
-    final formatted = stats != null ? formatStat(id, stats!) : null;
+    final formatted = stats != null ? formatStat(id, stats!, unitSystem) : null;
     return HeroStatTile(label: id.label, icon: id.icon, value: formatted?.$1, unit: formatted?.$2 ?? '');
   }
 
   Widget _compactTile(StatId id) {
-    final formatted = stats != null ? formatStat(id, stats!) : null;
+    final formatted = stats != null ? formatStat(id, stats!, unitSystem) : null;
     return CompactStatTile(label: id.label, icon: id.icon, value: formatted?.$1, unit: formatted?.$2 ?? '');
   }
 }

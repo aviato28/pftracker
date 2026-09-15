@@ -123,6 +123,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
               right: 20,
               child: Consumer<FlightSessionController>(
                 builder: (context, controller, _) => GpsStatusPill(
+                  signalState: controller.gpsSignalState,
+                  timeSinceLastFix: controller.timeSinceLastFix,
                   accuracyMeters: controller.stats?.gpsAccuracyM,
                   barometerAvailable: controller.barometerAvailability == BarometerAvailability.available,
                   hasError: controller.locationError != null,
@@ -185,6 +187,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                               builder: (context, controller, _) => StatsPanel(
                                 stats: controller.stats,
                                 enabledStats: settings.enabledStats,
+                                unitSystem: settings.unitSystem,
                               ),
                             ),
                           ),

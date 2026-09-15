@@ -12,6 +12,24 @@ import '../domain/geo_utils.dart';
 
 enum BarometerAvailability { unknown, available, unavailable }
 
+/// How long without a new GPS fix before the UI should say so explicitly,
+/// rather than silently keep showing the last known numbers.
+const gpsSignalLostThreshold = Duration(seconds: 20);
+
+enum GpsSignalState {
+  /// Tracking hasn't produced a single fix yet (just started, or the GPS
+  /// chip is still doing a cold start without assisted-GPS data — which
+  /// takes longer in airplane mode).
+  acquiring,
+
+  /// Fixes are arriving normally.
+  active,
+
+  /// Had a fix before, but nothing for [gpsSignalLostThreshold] or more —
+  /// e.g. weak reception away from a window, mid-turn antenna shadowing.
+  lost,
+}
+
 /// Orchestrates a single tracking session: owns the GPS and barometer
 /// streams, merges their readings into [FlightSample]s, and exposes the
 /// derived [FlightStats] to the UI. This is the only place in the app that
@@ -26,12 +44,26 @@ class FlightSessionController extends ChangeNotifier {
   final List<FlightSample> _samples = [];
   StreamSubscription<FlightSample>? _positionSub;
   StreamSubscription<double>? _pressureSub;
+  Timer? _watchdogTimer;
   double? _latestPressureHpa;
+  DateTime? _lastSampleAtLocal;
 
   BarometerAvailability barometerAvailability = BarometerAvailability.unknown;
   String? locationError;
   bool get isTracking => _positionSub != null;
   DateTime? get sessionStartUtc => _sessionStartUtc;
+
+  GpsSignalState get gpsSignalState {
+    final lastSample = _lastSampleAtLocal;
+    if (lastSample == null) return GpsSignalState.acquiring;
+    final since = DateTime.now().difference(lastSample);
+    return since > gpsSignalLostThreshold ? GpsSignalState.lost : GpsSignalState.active;
+  }
+
+  Duration? get timeSinceLastFix {
+    final lastSample = _lastSampleAtLocal;
+    return lastSample == null ? null : DateTime.now().difference(lastSample);
+  }
 
   FlightSessionController({
     required this.settings,
@@ -104,6 +136,11 @@ class FlightSessionController extends ChangeNotifier {
       },
     );
 
+    // Ticks the UI independently of new fixes arriving, so "time since
+    // last fix" (and the acquiring/active/lost state derived from it) is
+    // live even while nothing new is coming in — that's the whole point.
+    _watchdogTimer = Timer.periodic(const Duration(seconds: 3), (_) => notifyListeners());
+
     notifyListeners();
     return true;
   }
@@ -119,14 +156,17 @@ class FlightSessionController extends ChangeNotifier {
           )
         : sample;
     _samples.add(merged);
+    _lastSampleAtLocal = DateTime.now();
     notifyListeners();
   }
 
   void stop() {
     _positionSub?.cancel();
     _pressureSub?.cancel();
+    _watchdogTimer?.cancel();
     _positionSub = null;
     _pressureSub = null;
+    _watchdogTimer = null;
   }
 
   @override

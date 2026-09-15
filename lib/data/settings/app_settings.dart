@@ -2,10 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/stat_id.dart';
+import '../../domain/unit_system.dart';
 
 const _enabledStatsKey = 'enabled_stats';
 const _qnhHpaKey = 'qnh_hpa';
 const _flightApiKeyKey = 'flight_api_key';
+const _unitSystemKey = 'unit_system';
 
 /// Persisted user preferences: which stats are shown, the QNH reference
 /// pressure for barometric altitude, and the optional flight-lookup API
@@ -63,6 +65,19 @@ class AppSettings extends ChangeNotifier {
 
   set flightApiKey(String value) {
     _prefs.setString(_flightApiKeyKey, value);
+    notifyListeners();
+  }
+
+  UnitSystem get unitSystem {
+    final stored = _prefs.getString(_unitSystemKey);
+    for (final u in UnitSystem.values) {
+      if (u.name == stored) return u;
+    }
+    return UnitSystem.metric;
+  }
+
+  set unitSystem(UnitSystem value) {
+    _prefs.setString(_unitSystemKey, value.name);
     notifyListeners();
   }
 }

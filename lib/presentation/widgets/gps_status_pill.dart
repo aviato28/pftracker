@@ -1,17 +1,25 @@
 import 'package:flutter/material.dart';
 
+import '../../state/flight_session_controller.dart';
 import '../theme/app_theme.dart';
 
 /// Floating HUD pill showing GPS signal strength (as ascending bars, like
 /// a phone's signal indicator) plus whether barometric altitude is also
-/// fused in. Bar count is derived from the GPS fix's horizontal accuracy.
+/// fused in. Distinguishes "never had a fix yet" (acquiring), "fixes
+/// arriving normally," and "had a fix, nothing for a while now" (lost) —
+/// showing the last known numbers forever with no indication they've gone
+/// stale would be misleading mid-flight.
 class GpsStatusPill extends StatelessWidget {
+  final GpsSignalState signalState;
+  final Duration? timeSinceLastFix;
   final double? accuracyMeters;
   final bool barometerAvailable;
   final bool hasError;
 
   const GpsStatusPill({
     super.key,
+    required this.signalState,
+    required this.timeSinceLastFix,
     required this.accuracyMeters,
     required this.barometerAvailable,
     required this.hasError,
@@ -19,7 +27,7 @@ class GpsStatusPill extends StatelessWidget {
 
   int get _bars {
     final acc = accuracyMeters;
-    if (hasError || acc == null) return 0;
+    if (hasError || acc == null || signalState != GpsSignalState.active) return 0;
     if (acc <= 5) return 4;
     if (acc <= 15) return 3;
     if (acc <= 30) return 2;
@@ -28,9 +36,25 @@ class GpsStatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bars = _bars;
-    final color = hasError ? AppColors.error : AppColors.accent;
-    final label = hasError ? 'GPS ERROR' : (barometerAvailable ? 'GPS+BARO' : 'GPS');
+    final Color color;
+    final String label;
+    if (hasError) {
+      color = AppColors.error;
+      label = 'GPS ERROR';
+    } else {
+      switch (signalState) {
+        case GpsSignalState.acquiring:
+          color = AppColors.textMuted;
+          label = 'ACQUIRING…';
+        case GpsSignalState.lost:
+          color = AppColors.error;
+          final seconds = timeSinceLastFix?.inSeconds ?? 0;
+          label = 'NO FIX ${seconds}s';
+        case GpsSignalState.active:
+          color = AppColors.accent;
+          label = barometerAvailable ? 'GPS+BARO' : 'GPS';
+      }
+    }
 
     return Container(
       height: 38,
@@ -43,7 +67,7 @@ class GpsStatusPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _SignalBars(activeBars: bars, color: color),
+          _SignalBars(activeBars: _bars, color: color),
           const SizedBox(width: 8),
           Container(width: 1, height: 14, color: color.withValues(alpha: 0.25)),
           const SizedBox(width: 8),

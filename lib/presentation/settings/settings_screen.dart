@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../data/settings/app_settings.dart';
 import '../../domain/stat_id.dart';
+import '../../domain/unit_system.dart';
 import '../theme/app_theme.dart';
 import '../widgets/pill_switch.dart';
 
@@ -40,6 +41,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
         children: [
+          const _SectionLabel('Units'),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                for (final system in UnitSystem.values)
+                  Expanded(
+                    child: _UnitSystemOption(
+                      system: system,
+                      selected: settings.unitSystem == system,
+                      onTap: () => settings.unitSystem = system,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
           const _SectionLabel('Displayed stats'),
           Container(
             decoration: BoxDecoration(
@@ -159,6 +182,51 @@ class _SectionLabel extends StatelessWidget {
           fontWeight: FontWeight.w700,
           letterSpacing: 0.6,
           color: AppColors.textFaint,
+        ),
+      ),
+    );
+  }
+}
+
+class _UnitSystemOption extends StatelessWidget {
+  final UnitSystem system;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _UnitSystemOption({required this.system, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              system.label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: selected ? AppColors.onAccent : AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${system.speedUnit} · ${system.distanceUnit} · ${system.altitudeUnit}',
+              style: TextStyle(
+                fontSize: 10.5,
+                color: selected ? AppColors.onAccent.withValues(alpha: 0.75) : AppColors.textFaint,
+              ),
+            ),
+          ],
         ),
       ),
     );

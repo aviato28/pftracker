@@ -2,23 +2,27 @@ import 'package:intl/intl.dart';
 
 import '../../domain/flight_stats.dart';
 import '../../domain/stat_id.dart';
+import '../../domain/unit_system.dart';
 
 final _timeFormat = DateFormat('HH:mm');
 final _numberFormat = NumberFormat.decimalPattern();
 
 /// (value, unit) display pair for a stat, or null if it can't be shown yet
 /// (e.g. no GPS fix, or the source sensor is unavailable/disabled).
-(String, String)? formatStat(StatId id, FlightStats stats) {
+/// [units] controls which unit system altitude/speed/distance render in —
+/// vertical speed stays ft/min regardless, matching real aviation
+/// instruments even in metric-unit countries.
+(String, String)? formatStat(StatId id, FlightStats stats, UnitSystem units) {
   switch (id) {
     case StatId.altitudeGps:
       if (stats.altitudeGpsFt == null) return null;
-      return (_numberFormat.format(stats.altitudeGpsFt!.round()), 'ft');
+      return (_numberFormat.format(units.altitudeFromFeet(stats.altitudeGpsFt!).round()), units.altitudeUnit);
     case StatId.altitudeBaro:
       if (stats.altitudeBaroFt == null) return null;
-      return (_numberFormat.format(stats.altitudeBaroFt!.round()), 'ft');
+      return (_numberFormat.format(units.altitudeFromFeet(stats.altitudeBaroFt!).round()), units.altitudeUnit);
     case StatId.groundSpeed:
       if (stats.groundSpeedKmh == null) return null;
-      return (stats.groundSpeedKmh!.round().toString(), 'km/h');
+      return (units.speedFromKmh(stats.groundSpeedKmh!).round().toString(), units.speedUnit);
     case StatId.heading:
       if (stats.headingDegrees == null) return null;
       return (stats.headingDegrees!.round().toString(), '°');
@@ -28,10 +32,10 @@ final _numberFormat = NumberFormat.decimalPattern();
       return ('${v > 0 ? '+' : ''}$v', 'ft/min');
     case StatId.distanceRemaining:
       if (stats.distanceRemainingKm == null) return null;
-      return (stats.distanceRemainingKm!.round().toString(), 'km');
+      return (units.distanceFromKm(stats.distanceRemainingKm!).round().toString(), units.distanceUnit);
     case StatId.distanceTraveled:
       if (stats.distanceTraveledKm == null) return null;
-      return (stats.distanceTraveledKm!.round().toString(), 'km');
+      return (units.distanceFromKm(stats.distanceTraveledKm!).round().toString(), units.distanceUnit);
     case StatId.progressPercent:
       if (stats.progressPercent == null) return null;
       return (stats.progressPercent!.round().toString(), '%');
