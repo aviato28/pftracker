@@ -24,6 +24,7 @@ class FlightStats {
   final Duration elapsedTime;
   final DateTime? localTimeAtDestination;
   final int? timeZonesCrossed;
+  final double? gpsAccuracyM;
   final double lat;
   final double lon;
 
@@ -40,6 +41,7 @@ class FlightStats {
     required this.elapsedTime,
     this.localTimeAtDestination,
     this.timeZonesCrossed,
+    this.gpsAccuracyM,
     required this.lat,
     required this.lon,
   });
@@ -156,6 +158,7 @@ class FlightStatsEngine {
       elapsedTime: elapsedTime,
       localTimeAtDestination: localTimeAtDestination,
       timeZonesCrossed: timeZonesCrossed,
+      gpsAccuracyM: current.gpsAccuracyM,
       lat: current.lat,
       lon: current.lon,
     );

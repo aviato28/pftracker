@@ -13,7 +13,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('pftracker'), findsOneWidget);
-    expect(find.text('Departure airport'), findsOneWidget);
-    expect(find.text('Arrival airport'), findsOneWidget);
+    expect(find.text('DEPARTURE'), findsOneWidget);
+    expect(find.text('ARRIVAL'), findsOneWidget);
   });
 }

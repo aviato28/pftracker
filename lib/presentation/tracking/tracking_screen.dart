@@ -5,6 +5,8 @@ import '../../data/settings/app_settings.dart';
 import '../../domain/flight_route.dart';
 import '../../domain/geo_utils.dart';
 import '../../state/flight_session_controller.dart';
+import '../theme/app_theme.dart';
+import '../widgets/gps_status_pill.dart';
 import '../widgets/stats_panel.dart';
 import 'world_map_view.dart';
 
@@ -54,26 +56,17 @@ class _TrackingScreenState extends State<TrackingScreen> {
       route.arrival.lat,
       route.arrival.lon,
     );
+    final topInset = MediaQuery.paddingOf(context).top;
 
     return ChangeNotifierProvider.value(
       value: _controller,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(route.label),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Center(
-                child: Consumer<FlightSessionController>(
-                  builder: (context, controller, _) => _StatusChip(controller: controller),
-                ),
-              ),
-            ),
-          ],
-        ),
-        body: Column(
+        backgroundColor: AppColors.background,
+        extendBodyBehindAppBar: true,
+        body: Stack(
           children: [
-            Expanded(
+            Positioned.fill(
+              bottom: 0,
               child: Consumer<FlightSessionController>(
                 builder: (context, controller, _) {
                   final stats = controller.stats;
@@ -87,15 +80,107 @@ class _TrackingScreenState extends State<TrackingScreen> {
                 },
               ),
             ),
-            Material(
-              elevation: 8,
-              color: Theme.of(context).colorScheme.surface,
-              child: SafeArea(
-                top: false,
-                child: Consumer<FlightSessionController>(
-                  builder: (context, controller, _) => StatsPanel(
-                    stats: controller.stats,
-                    enabledStats: settings.enabledStats,
+
+            // back button
+            Positioned(
+              top: topInset + 10,
+              left: 20,
+              child: _HudButton(
+                icon: Icons.arrow_back_ios_new_rounded,
+                onTap: () => Navigator.of(context).maybePop(),
+              ),
+            ),
+
+            // flight label
+            Positioned(
+              top: topInset + 10,
+              left: 70,
+              right: 104,
+              child: Container(
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xB30F141A),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                ),
+                child: Text.rich(
+                  TextSpan(children: [
+                    TextSpan(text: route.departure.displayCode, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    const TextSpan(text: '  →  ', style: TextStyle(color: AppColors.textFaint)),
+                    TextSpan(text: route.arrival.displayCode, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  ]),
+                  style: const TextStyle(fontSize: 14.5, color: AppColors.textPrimary),
+                ),
+              ),
+            ),
+
+            // GPS status
+            Positioned(
+              top: topInset + 10,
+              right: 20,
+              child: Consumer<FlightSessionController>(
+                builder: (context, controller, _) => GpsStatusPill(
+                  accuracyMeters: controller.stats?.gpsAccuracyM,
+                  barometerAvailable: controller.barometerAvailability == BarometerAvailability.available,
+                  hasError: controller.locationError != null,
+                ),
+              ),
+            ),
+
+            // route progress
+            Positioned(
+              top: topInset + 60,
+              left: 20,
+              right: 20,
+              child: Consumer<FlightSessionController>(
+                builder: (context, controller, _) {
+                  final progress = controller.stats?.progressPercent;
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: progress != null ? (progress / 100).clamp(0.0, 1.0) : 0,
+                      minHeight: 3,
+                      backgroundColor: Colors.white.withValues(alpha: 0.08),
+                      valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // stats sheet
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Material(
+                color: AppColors.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.border,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        Consumer<FlightSessionController>(
+                          builder: (context, controller, _) => StatsPanel(
+                            stats: controller.stats,
+                            enabledStats: settings.enabledStats,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -107,38 +192,28 @@ class _TrackingScreenState extends State<TrackingScreen> {
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  final FlightSessionController controller;
-  const _StatusChip({required this.controller});
+class _HudButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _HudButton({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    if (controller.locationError != null) {
-      return Chip(
-        avatar: const Icon(Icons.gps_off, size: 16, color: Colors.white),
-        label: const Text('GPS error', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.red.shade700,
-        visualDensity: VisualDensity.compact,
-      );
-    }
-    if (!controller.isTracking) {
-      return const Chip(
-        label: Text('Starting GPS…'),
-        visualDensity: VisualDensity.compact,
-      );
-    }
-    return Chip(
-      avatar: Icon(
-        Icons.gps_fixed,
-        size: 16,
-        color: Theme.of(context).colorScheme.primary,
+    return Material(
+      color: const Color(0xB30F141A),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
       ),
-      label: Text(
-        controller.barometerAvailability == BarometerAvailability.available
-            ? 'GPS + baro'
-            : 'GPS',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: SizedBox(
+          width: 38,
+          height: 38,
+          child: Icon(icon, size: 17, color: AppColors.textPrimary),
+        ),
       ),
-      visualDensity: VisualDensity.compact,
     );
   }
 }

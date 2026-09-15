@@ -31,16 +31,14 @@ dependencies:
   flutter:
     sdk: flutter
 
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
   geolocator: ^14.0.2
   http: ^1.6.0
   shared_preferences: ^2.5.3
   provider: ^6.1.5+1
   intl: ^0.20.2
   timezone: ^0.11.1
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
 
 dev_dependencies:
   flutter_test:
@@ -68,28 +66,28 @@ flutter:
     - assets/data/airports.json
     - assets/data/world_land.json
 
-  # An image asset can refer to one or more resolution-specific "variants", see
-  # https://flutter.dev/to/resolution-aware-images
-
-  # For details regarding adding assets from package dependencies, see
-  # https://flutter.dev/to/asset-from-package
-
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
-  #
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
+  # Manrope and JetBrains Mono are bundled as variable fonts (one file per
+  # family, registered at several weights) rather than fetched at runtime —
+  # this app has to work with zero connectivity, so nothing can depend on
+  # Google Fonts' CDN.
+  fonts:
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/Manrope-Variable.ttf
+          weight: 500
+        - asset: assets/fonts/Manrope-Variable.ttf
+          weight: 600
+        - asset: assets/fonts/Manrope-Variable.ttf
+          weight: 700
+        - asset: assets/fonts/Manrope-Variable.ttf
+          weight: 800
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Variable.ttf
+          weight: 500
+        - asset: assets/fonts/JetBrainsMono-Variable.ttf
+          weight: 600
+        - asset: assets/fonts/JetBrainsMono-Variable.ttf
+          weight: 700

@@ -4,6 +4,7 @@ import 'package:timezone/data/latest.dart' as tz_data;
 
 import 'data/settings/app_settings.dart';
 import 'presentation/setup/setup_screen.dart';
+import 'presentation/theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,12 +23,9 @@ class PftrackerApp extends StatelessWidget {
       value: settings,
       child: MaterialApp(
         title: 'pftracker',
-        theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
-        darkTheme: ThemeData(
-          colorSchemeSeed: Colors.indigo,
-          brightness: Brightness.dark,
-          useMaterial3: true,
-        ),
+        theme: AppTheme.dark,
+        darkTheme: AppTheme.dark,
+        themeMode: ThemeMode.dark,
         home: const SetupScreen(),
       ),
     );

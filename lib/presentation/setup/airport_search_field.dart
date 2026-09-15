@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../data/airports/airport_repository.dart';
 import '../../domain/airport.dart';
+import '../theme/app_theme.dart';
 import 'airport_search_page.dart';
 
-/// A field that looks like a text input but just opens the full-screen
+/// A row that looks like a filled-in field but just opens the full-screen
 /// [AirportSearchPage] on tap — see that file for why.
 class AirportSearchField extends StatelessWidget {
   final String label;
@@ -24,9 +25,7 @@ class AirportSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
       onTap: () async {
         final selected = await Navigator.of(context).push<Airport>(
           MaterialPageRoute(
@@ -35,18 +34,49 @@ class AirportSearchField extends StatelessWidget {
         );
         if (selected != null) onSelected(selected);
       },
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon),
-          border: const OutlineInputBorder(),
-        ),
-        child: Text(
-          value != null ? '${value!.displayCode} — ${value!.name}' : 'Tap to choose',
-          style: value == null
-              ? theme.textTheme.bodyLarge?.copyWith(color: theme.hintColor)
-              : theme.textTheme.bodyLarge,
-          overflow: TextOverflow.ellipsis,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.accentDim,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(icon, size: 18, color: AppColors.accent),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.4,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value != null ? '${value!.displayCode} — ${value!.name}' : 'Tap to choose',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: value != null ? AppColors.textPrimary : AppColors.textFaint,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+          ],
         ),
       ),
     );

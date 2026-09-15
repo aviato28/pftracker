@@ -1,16 +1,21 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../data/basemap/land_basemap_repository.dart';
-import '../../domain/map_projection.dart';
-import 'world_map_painter.dart';
+import '../../domain/geo_utils.dart';
+import '../theme/app_theme.dart';
+import '../widgets/nav_chevron.dart';
 
-/// A basic, fully offline world map: a bundled land/ocean silhouette (no
-/// tiles, no network, ever) with the planned route, flown track, and the
-/// aircraft's own position drawn on top. Pan and zoom come from
-/// [InteractiveViewer], which is simple enough to not get stuck the way a
-/// tile-layer map can when tiles fail to load.
+const _oceanColor = Color(0xFF0A1B21);
+
+/// A basic, fully offline world map: a bundled land/ocean vector outline
+/// (no tiles, no network, ever) with the planned route, flown track, and
+/// the aircraft's own position drawn on top. Built on `flutter_map`'s own
+/// pan/zoom/camera-fit handling — plain, well-tested gesture behavior
+/// rather than a hand-rolled one.
 class WorldMapView extends StatefulWidget {
   final List<List<double>> routeLatLon;
   final List<List<double>> traveledLatLon;
@@ -32,145 +37,106 @@ class WorldMapView extends StatefulWidget {
 }
 
 class _WorldMapViewState extends State<WorldMapView> {
-  final _controller = TransformationController();
   final _repository = LandBasemapRepository();
-  Path? _land;
-  bool _fitted = false;
+  List<Polygon>? _land;
 
   @override
   void initState() {
     super.initState();
-    _repository.load().then((path) {
-      if (mounted) setState(() => _land = path);
+    _repository.load().then((polygons) {
+      if (mounted) setState(() => _land = polygons);
     });
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _fitToRoute(Size viewportSize) {
-    if (widget.routeLatLon.isEmpty ||
-        viewportSize.width <= 0 ||
-        viewportSize.height <= 0) {
-      return;
-    }
-    final points =
-        widget.routeLatLon.map((p) => MapProjection.project(p[0], p[1])).toList();
-    var minX = points.first.dx, maxX = points.first.dx;
-    var minY = points.first.dy, maxY = points.first.dy;
-    for (final point in points) {
-      minX = math.min(minX, point.dx);
-      maxX = math.max(maxX, point.dx);
-      minY = math.min(minY, point.dy);
-      maxY = math.max(maxY, point.dy);
-    }
-
-    const padding = 80.0;
-    final boxWidth = (maxX - minX) + padding * 2;
-    final boxHeight = (maxY - minY) + padding * 2;
-    final boxCenter = Offset((minX + maxX) / 2, (minY + maxY) / 2);
-
-    final scale = math
-        .min(viewportSize.width / boxWidth, viewportSize.height / boxHeight)
-        .clamp(0.5, 30.0);
-    final viewportCenter = Offset(viewportSize.width / 2, viewportSize.height / 2);
-
-    final matrix = Matrix4.identity()
-      ..translateByDouble(
-        viewportCenter.dx - boxCenter.dx * scale,
-        viewportCenter.dy - boxCenter.dy * scale,
-        0,
-        1,
-      )
-      ..scaleByDouble(scale, scale, scale, 1);
-    _controller.value = matrix;
+  List<List<LatLng>> _toLatLngSegments(List<List<double>> latLon) {
+    return GeoUtils.splitAtAntimeridian(latLon)
+        .map((segment) => segment.map((p) => LatLng(p[0], p[1])).toList())
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final land = _land;
     if (land == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const ColoredBox(
+        color: AppColors.background,
+        child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
+      );
     }
 
-    final routeSegments = MapProjection.projectPolyline(widget.routeLatLon);
-    final traveledSegments = MapProjection.projectPolyline(widget.traveledLatLon);
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final routePoints = widget.routeLatLon.map((p) => LatLng(p[0], p[1])).toList();
+    final bounds = LatLngBounds.fromPoints(routePoints);
+    final routeSegments = _toLatLngSegments(widget.routeLatLon);
+    final traveledSegments = _toLatLngSegments(widget.traveledLatLon);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
-        if (!_fitted && viewportSize.width > 0 && viewportSize.height > 0) {
-          _fitted = true;
-          WidgetsBinding.instance
-              .addPostFrameCallback((_) => _fitToRoute(viewportSize));
-        }
-
-        return ClipRect(
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: InteractiveViewer(
-                  transformationController: _controller,
-                  minScale: 0.5,
-                  maxScale: 30,
-                  boundaryMargin: const EdgeInsets.all(400),
-                  child: SizedBox(
-                    width: MapProjection.mapWidth,
-                    height: MapProjection.mapHeight,
-                    child: CustomPaint(
-                      size: const Size(MapProjection.mapWidth, MapProjection.mapHeight),
-                      painter: WorldMapPainter(
-                        land: land,
-                        routeSegments: routeSegments,
-                        traveledSegments: traveledSegments,
-                        oceanColor: isDark
-                            ? const Color(0xFF16324A)
-                            : const Color(0xFFBFE0F0),
-                        landColor: isDark
-                            ? const Color(0xFF3A4A3A)
-                            : const Color(0xFFE9E3CC),
-                        landBorderColor: isDark
-                            ? const Color(0xFF56705A)
-                            : const Color(0xFFB9AF8E),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (widget.currentLat != null && widget.currentLon != null)
-                AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, _) {
-                    final childPoint =
-                        MapProjection.project(widget.currentLat!, widget.currentLon!);
-                    final screenPoint =
-                        MatrixUtils.transformPoint(_controller.value, childPoint);
-                    return Positioned(
-                      left: screenPoint.dx - 14,
-                      top: screenPoint.dy - 14,
-                      child: IgnorePointer(
-                        child: Transform.rotate(
-                          angle: (widget.headingDegrees ?? 0) * math.pi / 180,
-                          child: const Icon(
-                            Icons.navigation,
-                            color: Colors.redAccent,
-                            size: 28,
-                            shadows: [Shadow(color: Colors.black45, blurRadius: 3)],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-            ],
+    return ColoredBox(
+      color: _oceanColor,
+      child: FlutterMap(
+        options: MapOptions(
+          initialCameraFit: CameraFit.bounds(
+            bounds: bounds,
+            padding: const EdgeInsets.all(48),
           ),
-        );
-      },
+          minZoom: 1,
+          maxZoom: 13,
+        ),
+        children: [
+          PolygonLayer(polygons: land),
+          PolylineLayer(polylines: [
+            for (final segment in routeSegments)
+              Polyline(
+                points: segment,
+                color: const Color(0xFF3A4B57),
+                strokeWidth: 2,
+                pattern: StrokePattern.dashed(segments: const [1, 9]),
+              ),
+          ]),
+          // Glow: a soft wide line underneath the crisp traveled track.
+          PolylineLayer(polylines: [
+            for (final segment in traveledSegments)
+              Polyline(points: segment, color: AppColors.accent.withValues(alpha: 0.25), strokeWidth: 9),
+          ]),
+          PolylineLayer(polylines: [
+            for (final segment in traveledSegments)
+              Polyline(points: segment, color: AppColors.accent, strokeWidth: 3),
+          ]),
+          if (widget.currentLat != null && widget.currentLon != null)
+            MarkerLayer(markers: [
+              Marker(
+                point: LatLng(widget.currentLat!, widget.currentLon!),
+                width: 44,
+                height: 44,
+                child: _AircraftMarker(headingDegrees: widget.headingDegrees ?? 0),
+              ),
+            ]),
+        ],
+      ),
+    );
+  }
+}
+
+class _AircraftMarker extends StatelessWidget {
+  final double headingDegrees;
+  const _AircraftMarker({required this.headingDegrees});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.accent.withValues(alpha: 0.18),
+          ),
+        ),
+        Transform.rotate(
+          angle: headingDegrees * math.pi / 180,
+          child: const NavChevron(size: 18),
+        ),
+      ],
     );
   }
 }

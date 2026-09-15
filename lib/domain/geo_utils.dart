@@ -103,4 +103,25 @@ class GeoUtils {
   }) {
     return 44330 * (1 - math.pow(pressureHpa / seaLevelHpa, 0.1903)).toDouble();
   }
+
+  /// Splits a `[lat, lon]` polyline into one or more segments, starting a
+  /// new one wherever consecutive points cross the antimeridian — drawing
+  /// the two halves of a transpacific route as one line straight across
+  /// the map would otherwise look like a spurious streak.
+  static List<List<List<double>>> splitAtAntimeridian(List<List<double>> points) {
+    final segments = <List<List<double>>>[];
+    var current = <List<double>>[];
+    double? previousLon;
+    for (final point in points) {
+      final lon = point[1];
+      if (previousLon != null && (lon - previousLon).abs() > 180) {
+        if (current.length > 1) segments.add(current);
+        current = [];
+      }
+      current.add(point);
+      previousLon = lon;
+    }
+    if (current.length > 1) segments.add(current);
+    return segments;
+  }
 }

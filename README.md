@@ -6,8 +6,11 @@ position, altitude, speed, and time to destination on a map for the whole
 flight with **zero connectivity**, using only the device's GPS (receive-only,
 so it works in airplane mode) and, optionally, its barometer.
 
-The map is a basic bundled world outline, not detailed street tiles — it
-ships inside the app itself, so there is nothing to download and no network
+The UI is a dark, glass-cockpit-inspired design (see the approved mockups
+this was built from) — deep charcoal background, one electric-cyan accent,
+Manrope for text and JetBrains Mono for the big HUD-style numbers. The map
+is a basic bundled world outline, not detailed street tiles — it ships
+inside the app itself, so there is nothing to download and no network
 dependency at any point, ever.
 
 ## How it works
@@ -26,7 +29,7 @@ lib/
   domain/        Pure Dart models and math — Airport, FlightRoute,
                   FlightSample, FlightStats (+ the engine that computes it),
                   StatId (the toggleable stat catalog), great-circle/
-                  barometric-altitude math.
+                  antimeridian-split/barometric-altitude math.
   data/
     location/     GPS via `geolocator` (airplane-mode friendly).
     barometer/    Platform channel to the native pressure sensor
@@ -34,35 +37,51 @@ lib/
     airports/     In-memory search over the bundled airport dataset.
     routes/       Flight-number -> route lookup (pluggable; ships with an
                   AeroDataBox/RapidAPI implementation).
-    basemap/      Loads the bundled world land/ocean outline into a single
-                  cached `Path`, ready to paint — see below.
+    basemap/      Loads the bundled world land outline into `flutter_map`
+                  `Polygon`s, ready to render — see "The map" below.
     settings/     Persisted user preferences (shared_preferences).
   state/          FlightSessionController: owns the live session, merges
                   GPS + barometer readings, exposes computed stats.
-  presentation/   Setup, Tracking (map + stats), and Settings screens.
+  presentation/
+    theme/         AppColors + AppTheme — the whole app's dark palette and
+                    type scale in one place.
+    setup/         Route setup screen, airport search.
+    tracking/       Live tracking screen + the map.
+    settings/       Settings screen.
+    widgets/        Shared pieces (stat tiles, the pill switch, the GPS
+                    signal-strength pill, the nav-chevron mark).
 ```
 
 ## The map
 
-`presentation/tracking/world_map_view.dart` is a deliberately basic offline
-map: an equirectangular (plate carrée) projection of a bundled land/ocean
-outline (`assets/data/world_land.json`, ~75KB, simplified from Natural
-Earth 1:110m — see `domain/map_projection.dart`), drawn once as a static
-`Path` and reused every frame. Pan/zoom come from a plain `InteractiveViewer`
-around that canvas — no tile pyramid, no tile server, no download step, and
-nothing that can get stuck waiting on a network request. The route line,
-flown track, and aircraft marker are drawn/positioned in the same
-coordinate space on top.
+`presentation/tracking/world_map_view.dart` renders a bundled land outline
+(`assets/data/world_land.json`, ~75KB, simplified from Natural Earth 1:110m)
+as `flutter_map` `Polygon`s — a basic vector map, not raster tiles, so
+there's no tile server, no download step, and nothing that can fail to
+load. Pan/zoom/fit-to-route use `flutter_map`'s own camera and gesture
+handling rather than a hand-rolled one — an earlier version drove a plain
+`InteractiveViewer` with a manually-computed transform, which is what
+caused the map to render but not be pannable ("stuck in a random
+position"): setting `TransformationController.value` directly fights that
+widget's internal pan/zoom clamping. `flutter_map`'s `CameraFit.bounds` and
+default interaction handling do the same job correctly.
 
 ## Data sources
 
-- **Airports** (`assets/data/airports.json`): ~7.7k airports with ICAO/IATA
-  codes, coordinates, elevation, and IANA timezone, derived from the
-  [OpenFlights](https://openflights.org/data.html) dataset (itself sourced
-  from OurAirports), licensed under ODbL. Attribution is shown in Settings.
+- **Airports** (`assets/data/airports.json`, ~9.3k airports): derived from
+  [OurAirports](https://ourairports.com/data/) (public domain, actively
+  maintained — unlike the OpenFlights snapshot this originally shipped
+  with, which was missing newer airports like Noida/Jewar (DXN) and Navi
+  Mumbai (NMI)). IANA timezones are computed locally at build time from
+  each airport's coordinates (via `timezonefinder`), not sourced from any
+  API.
 - **Map** (`assets/data/world_land.json`): land polygon outlines derived
   from [Natural Earth](https://www.naturalearthdata.com/) 1:110m data
-  (public domain, no attribution required — see "The map" above).
+  (public domain, no attribution required).
+- **Fonts** (`assets/fonts/`): Manrope and JetBrains Mono, bundled as
+  variable-font files rather than fetched from Google Fonts at runtime —
+  this app has to render correctly with zero connectivity, so nothing can
+  depend on a font CDN.
 - **Flight-number lookup**: `AeroDataBoxRouteLookupService` calls AeroDataBox
   via RapidAPI. It needs an API key (enter it in Settings) — without one,
   manual airport entry still works fully. The response parsing follows
@@ -74,9 +93,13 @@ coordinate space on top.
 Every stat is independently toggleable in Settings (see `domain/stat_id.dart`):
 GPS altitude, barometric altitude, ground speed, heading, vertical speed,
 distance remaining/traveled, route progress %, ETA, elapsed time, local time
-at destination, timezones crossed, and raw coordinates. Local time / timezone
-math uses each airport's real IANA timezone (DST-aware) when known, falling
-back to a longitude-based approximation otherwise.
+at destination, timezones crossed, and raw coordinates. The two most-glanced
+at (altitude and speed, by default) get the large "hero" tile treatment on
+the tracking screen; everything else enabled sits in a compact grid below.
+Local time / timezone math uses each airport's real IANA timezone
+(DST-aware) when known, falling back to a longitude-based approximation
+otherwise. The tracking screen's GPS status pill also shows signal strength
+as ascending bars, derived from the GPS fix's horizontal accuracy.
 
 ## Permissions
 
@@ -92,22 +115,17 @@ back to a longitude-based approximation otherwise.
 - **Android**: `flutter build apk --release --split-per-abi` succeeds
   (verified in this sandbox with a manually installed Android SDK —
   Gradle/AGP/Kotlin versions are current as of the last build).
-- An earlier version used `flutter_map` + live/pre-downloaded OpenStreetMap
-  tiles for the map and an overlay-based autocomplete for airport search.
-  Both were reported broken on a real device (map not loading, UI feeling
-  stuck/unscrollable) and have been replaced outright: the map is now the
-  bundled offline outline described above, and airport search is a plain
-  full-screen list (`presentation/setup/airport_search_page.dart`) instead
-  of an inline overlay. Rebuilding/analyzing confirms it compiles, but
-  **this specific fix has not yet been re-tested on the device that hit the
-  original bug** — that's the next thing to confirm.
+  `flutter analyze` and `flutter test` are clean.
 - **iOS**: unverified — this sandbox has no macOS/Xcode. The Xcode project
   was regenerated from a current `flutter create` (scene-based lifecycle),
   and `AppDelegate.swift`'s barometer channel setup follows Flutter's own
   `FlutterImplicitEngineDelegate` example, but neither has been compiled.
-- Either way, **run on a real device before trusting it in flight**: GPS
-  and barometer behavior can't be trusted on an emulator/simulator, and
-  the whole point of the app is airplane-mode GPS tracking.
+- **Run on a real device before trusting it in flight**: GPS and barometer
+  behavior can't be trusted on an emulator/simulator, and the whole point
+  of the app is airplane-mode GPS tracking. In particular, please confirm
+  the map now pans/zooms normally — that was the one bug in the previous
+  build that a from-a-distance rebuild (no device here) can't fully rule
+  out on its own.
 - The AeroDataBox response parsing is best-effort; confirm against a real
   API response.
 

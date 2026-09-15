@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/airports/airport_repository.dart';
 import '../../domain/airport.dart';
+import '../theme/app_theme.dart';
 
 /// Full-screen airport search. A plain Navigator push + ListView is far
 /// more robust than an inline overlay-based autocomplete (which is prone
@@ -61,15 +62,20 @@ class _AirportSearchPageState extends State<AirportSearchPage> {
           controller: _controller,
           autofocus: true,
           textCapitalization: TextCapitalization.words,
+          style: const TextStyle(fontSize: 17),
           decoration: const InputDecoration(
             hintText: 'City, airport, or IATA/ICAO code',
             border: InputBorder.none,
+            filled: false,
+            contentPadding: EdgeInsets.zero,
           ),
           onChanged: _onChanged,
         ),
       ),
       body: _searched && _results.isEmpty
-          ? const Center(child: Text('No airports found'))
+          ? const Center(
+              child: Text('No airports found', style: TextStyle(color: AppColors.textMuted)),
+            )
           : ListView.separated(
               itemCount: _results.length,
               separatorBuilder: (_, __) => const Divider(height: 1),
@@ -77,13 +83,21 @@ class _AirportSearchPageState extends State<AirportSearchPage> {
                 final airport = _results[index];
                 return ListTile(
                   leading: CircleAvatar(
+                    backgroundColor: AppColors.accentDim,
                     child: Text(
                       airport.displayCode,
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.accent,
+                      ),
                     ),
                   ),
                   title: Text(airport.name),
-                  subtitle: Text('${airport.city}, ${airport.country}'),
+                  subtitle: Text(
+                    '${airport.city}, ${airport.country}',
+                    style: const TextStyle(color: AppColors.textMuted),
+                  ),
                   onTap: () => Navigator.of(context).pop(airport),
                 );
               },
