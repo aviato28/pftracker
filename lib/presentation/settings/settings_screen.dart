@@ -43,6 +43,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           for (final id in StatId.values)
             SwitchListTile(
+              secondary: Icon(id.icon),
               title: Text(id.label),
               value: settings.isEnabled(id),
               onChanged: (v) => settings.setEnabled(id, v),
@@ -93,8 +94,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Padding(
             padding: EdgeInsets.all(16),
             child: Text(
-              'Map tiles © OpenStreetMap contributors. Airport data from '
-              'OpenFlights/OurAirports (ODbL).',
+              'Map and airport data derived from Natural Earth and '
+              'OpenFlights/OurAirports (public domain / ODbL) and bundled '
+              'with the app — no map data is ever downloaded.',
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ),

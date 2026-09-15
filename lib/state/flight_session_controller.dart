@@ -55,7 +55,14 @@ class FlightSessionController extends ChangeNotifier {
   }
 
   Future<bool> start(FlightRoute flightRoute) async {
-    final granted = await _locationService.ensurePermission();
+    bool granted;
+    try {
+      granted = await _locationService.ensurePermission();
+    } catch (e) {
+      locationError = 'Could not access location services: $e';
+      notifyListeners();
+      return false;
+    }
     if (!granted) {
       locationError =
           'Location permission (and location services) are required to track your flight.';

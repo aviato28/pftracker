@@ -27,10 +27,10 @@ class StatsPanel extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: 10,
+        runSpacing: 10,
         children: [
           for (final id in orderedEnabled) _buildTile(id),
         ],
@@ -42,6 +42,7 @@ class StatsPanel extends StatelessWidget {
     final formatted = stats != null ? formatStat(id, stats!) : null;
     return StatTile(
       label: id.label,
+      icon: id.icon,
       value: formatted?.$1,
       unit: formatted?.$2 ?? '',
     );

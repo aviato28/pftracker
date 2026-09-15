@@ -4,12 +4,8 @@ import 'package:provider/provider.dart';
 import '../../data/airports/airport_repository.dart';
 import '../../data/routes/route_lookup_service.dart';
 import '../../data/settings/app_settings.dart';
-import '../../data/tiles/tile_cache_dir.dart';
-import '../../data/tiles/tile_downloader.dart';
-import '../../data/tiles/tile_math.dart';
 import '../../domain/airport.dart';
 import '../../domain/flight_route.dart';
-import '../../domain/geo_utils.dart';
 import '../settings/settings_screen.dart';
 import '../tracking/tracking_screen.dart';
 import 'airport_search_field.dart';
@@ -31,8 +27,6 @@ class _SetupScreenState extends State<SetupScreen> {
   FlightRoute? _route;
   bool _lookingUp = false;
   String? _lookupError;
-
-  double? _downloadProgress;
 
   @override
   void dispose() {
@@ -65,9 +59,7 @@ class _SetupScreenState extends State<SetupScreen> {
     );
     try {
       final route = await service.lookupByFlightNumber(flightNumber);
-      setState(() {
-        _route = route;
-      });
+      setState(() => _route = route);
     } on FlightRouteLookupException catch (e) {
       setState(() => _lookupError = e.message);
     } catch (e) {
@@ -75,38 +67,6 @@ class _SetupScreenState extends State<SetupScreen> {
     } finally {
       service.dispose();
       if (mounted) setState(() => _lookingUp = false);
-    }
-  }
-
-  Future<void> _downloadOfflineMaps() async {
-    final route = _route;
-    if (route == null) return;
-
-    setState(() => _downloadProgress = 0);
-    final cacheDir = await tileCacheDirectory();
-    final downloader = TileDownloader(cacheDir: cacheDir);
-    final path = GeoUtils.greatCirclePath(
-      route.departure.lat,
-      route.departure.lon,
-      route.arrival.lat,
-      route.arrival.lon,
-    );
-    final bounds = LatLngBoundsSimple.fromPoints(path);
-
-    await downloader.downloadRoute(
-      bounds: bounds,
-      minZoom: 3,
-      maxZoom: 8,
-      onProgress: (done, total) {
-        if (mounted) setState(() => _downloadProgress = total == 0 ? 1 : done / total);
-      },
-    );
-    downloader.dispose();
-    if (mounted) {
-      setState(() => _downloadProgress = null);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Offline map download complete.')),
-      );
     }
   }
 
@@ -120,12 +80,13 @@ class _SetupScreenState extends State<SetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('pftracker'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.settings_outlined),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SettingsScreen()),
             ),
@@ -133,112 +94,130 @@ class _SetupScreenState extends State<SetupScreen> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: ListView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Set up your route before you lose connectivity — this is '
-                'the only step that needs the internet. Tracking itself '
-                'works fully offline via GPS.',
-              ),
-              const SizedBox(height: 16),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(value: false, label: Text('Departure / Arrival')),
-                  ButtonSegment(value: true, label: Text('Flight Number')),
-                ],
-                selected: {_byFlightNumber},
-                onSelectionChanged: (s) => setState(() {
-                  _byFlightNumber = s.first;
-                  _route = null;
-                  _lookupError = null;
-                }),
-              ),
-              const SizedBox(height: 16),
-              if (!_byFlightNumber) ...[
-                AirportSearchField(
-                  label: 'Departure airport',
-                  repository: _airportRepository,
-                  onSelected: (a) {
-                    _departure = a;
-                    _tryBuildManualRoute();
-                  },
-                ),
-                const SizedBox(height: 12),
-                AirportSearchField(
-                  label: 'Arrival airport',
-                  repository: _airportRepository,
-                  onSelected: (a) {
-                    _arrival = a;
-                    _tryBuildManualRoute();
-                  },
-                ),
-              ] else ...[
-                TextField(
-                  controller: _flightNumberController,
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(
-                    labelText: 'Flight number',
-                    hintText: 'e.g. UA123',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: _lookingUp ? null : _lookupFlightNumber,
-                  child: _lookingUp
-                      ? const SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Look up route'),
-                ),
-                if (_lookupError != null) ...[
-                  const SizedBox(height: 8),
-                  Text(_lookupError!, style: const TextStyle(color: Colors.red)),
-                ],
-              ],
-              if (_route != null) ...[
-                const SizedBox(height: 20),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(_route!.label, style: Theme.of(context).textTheme.titleMedium),
-                        const SizedBox(height: 12),
-                        if (_downloadProgress != null)
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              LinearProgressIndicator(value: _downloadProgress),
-                              const SizedBox(height: 8),
-                              const Text('Downloading offline map tiles...'),
-                            ],
-                          )
-                        else
-                          OutlinedButton.icon(
-                            onPressed: _downloadOfflineMaps,
-                            icon: const Icon(Icons.download_for_offline),
-                            label: const Text('Download offline maps for this route'),
-                          ),
-                        const SizedBox(height: 8),
-                        FilledButton.icon(
-                          onPressed: _startTracking,
-                          icon: const Icon(Icons.flight_takeoff),
-                          label: const Text('Start tracking'),
-                        ),
-                      ],
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.wifi_off_rounded, color: theme.colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Set up your route now, while you still have wifi. '
+                    'Tracking itself needs no connectivity — just GPS.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 24),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                  value: false,
+                  icon: Icon(Icons.flight_takeoff),
+                  label: Text('Airports'),
+                ),
+                ButtonSegment(
+                  value: true,
+                  icon: Icon(Icons.confirmation_number_outlined),
+                  label: Text('Flight number'),
+                ),
+              ],
+              selected: {_byFlightNumber},
+              onSelectionChanged: (s) => setState(() {
+                _byFlightNumber = s.first;
+                _route = null;
+                _lookupError = null;
+              }),
+            ),
+            const SizedBox(height: 20),
+            if (!_byFlightNumber) ...[
+              AirportSearchField(
+                label: 'Departure airport',
+                icon: Icons.flight_takeoff,
+                repository: _airportRepository,
+                value: _departure,
+                onSelected: (a) {
+                  _departure = a;
+                  _tryBuildManualRoute();
+                },
+              ),
+              const SizedBox(height: 12),
+              AirportSearchField(
+                label: 'Arrival airport',
+                icon: Icons.flight_land,
+                repository: _airportRepository,
+                value: _arrival,
+                onSelected: (a) {
+                  _arrival = a;
+                  _tryBuildManualRoute();
+                },
+              ),
+            ] else ...[
+              TextField(
+                controller: _flightNumberController,
+                textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(
+                  labelText: 'Flight number',
+                  hintText: 'e.g. UA123',
+                  prefixIcon: Icon(Icons.confirmation_number_outlined),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _lookingUp ? null : _lookupFlightNumber,
+                icon: _lookingUp
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.search),
+                label: Text(_lookingUp ? 'Looking up…' : 'Look up route'),
+              ),
+              if (_lookupError != null) ...[
+                const SizedBox(height: 12),
+                Text(_lookupError!, style: TextStyle(color: theme.colorScheme.error)),
+              ],
             ],
-          ),
+            if (_route != null) ...[
+              const SizedBox(height: 24),
+              Card(
+                elevation: 0,
+                color: theme.colorScheme.primaryContainer,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _route!.label,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _startTracking,
+                          icon: const Icon(Icons.flight_takeoff),
+                          label: const Text('Start tracking'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
