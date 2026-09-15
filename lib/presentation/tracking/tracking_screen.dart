@@ -149,34 +149,42 @@ class _TrackingScreenState extends State<TrackingScreen> {
               ),
             ),
 
-            // stats sheet
+            // stats sheet — height-capped with its own scroll, so turning
+            // on every stat scrolls the sheet instead of overflowing it.
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
-              child: Material(
-                color: AppColors.surface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-                child: SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.52,
+                ),
+                child: Material(
+                  color: AppColors.surface,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+                  child: SafeArea(
+                    top: false,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
                           width: 36,
                           height: 4,
-                          margin: const EdgeInsets.only(bottom: 16),
+                          margin: const EdgeInsets.only(top: 14, bottom: 16),
                           decoration: BoxDecoration(
                             color: AppColors.border,
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
-                        Consumer<FlightSessionController>(
-                          builder: (context, controller, _) => StatsPanel(
-                            stats: controller.stats,
-                            enabledStats: settings.enabledStats,
+                        Flexible(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                            child: Consumer<FlightSessionController>(
+                              builder: (context, controller, _) => StatsPanel(
+                                stats: controller.stats,
+                                enabledStats: settings.enabledStats,
+                              ),
+                            ),
                           ),
                         ),
                       ],

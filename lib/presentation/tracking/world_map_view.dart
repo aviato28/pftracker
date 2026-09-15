@@ -10,6 +10,31 @@ import '../theme/app_theme.dart';
 import '../widgets/nav_chevron.dart';
 
 const _oceanColor = Color(0xFF0A1B21);
+const _oceanColorDeep = Color(0xFF071319);
+const _graticuleColor = Color(0x14BFE0F0);
+
+/// Lat/lon reference grid — purely decorative, but it's what stops a
+/// zoomed-in view over open ocean or a single landmass' interior from
+/// reading as an empty rectangle. Meridians/parallels are straight lines
+/// under Web Mercator, so two endpoints per line are enough.
+List<Polyline> _graticule() {
+  final lines = <Polyline>[];
+  for (var lon = -180; lon <= 180; lon += 30) {
+    lines.add(Polyline(
+      points: [LatLng(-80, lon.toDouble()), LatLng(80, lon.toDouble())],
+      color: _graticuleColor,
+      strokeWidth: 1,
+    ));
+  }
+  for (var lat = -60; lat <= 60; lat += 20) {
+    lines.add(Polyline(
+      points: [LatLng(lat.toDouble(), -180), LatLng(lat.toDouble(), 180)],
+      color: _graticuleColor,
+      strokeWidth: 1,
+    ));
+  }
+  return lines;
+}
 
 /// A basic, fully offline world map: a bundled land/ocean vector outline
 /// (no tiles, no network, ever) with the planned route, flown track, and
@@ -69,8 +94,14 @@ class _WorldMapViewState extends State<WorldMapView> {
     final routeSegments = _toLatLngSegments(widget.routeLatLon);
     final traveledSegments = _toLatLngSegments(widget.traveledLatLon);
 
-    return ColoredBox(
-      color: _oceanColor,
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment(0, -0.2),
+          radius: 1.1,
+          colors: [_oceanColor, _oceanColorDeep],
+        ),
+      ),
       child: FlutterMap(
         options: MapOptions(
           initialCameraFit: CameraFit.bounds(
@@ -79,8 +110,10 @@ class _WorldMapViewState extends State<WorldMapView> {
           ),
           minZoom: 1,
           maxZoom: 13,
+          backgroundColor: Colors.transparent,
         ),
         children: [
+          PolylineLayer(polylines: _graticule()),
           PolygonLayer(polygons: land),
           PolylineLayer(polylines: [
             for (final segment in routeSegments)
