@@ -10,6 +10,7 @@ import '../../data/update/update_info.dart';
 import '../../domain/airport.dart';
 import '../../domain/flight_route.dart';
 import '../../domain/geo_utils.dart';
+import '../guide/guide_screen.dart';
 import '../settings/settings_screen.dart';
 import '../theme/app_theme.dart';
 import '../tracking/tracking_screen.dart';
@@ -189,11 +190,22 @@ class _SetupScreenState extends State<SetupScreen> {
                         ),
                       ],
                     ),
-                    _IconSquareButton(
-                      icon: Icons.tune_rounded,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                      ),
+                    Row(
+                      children: [
+                        _IconSquareButton(
+                          icon: Icons.help_outline_rounded,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const GuideScreen()),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        _IconSquareButton(
+                          icon: Icons.tune_rounded,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
