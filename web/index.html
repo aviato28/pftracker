@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>pftracker — offline flight tracker</title>
+<meta name="description" content="Track your own flight's altitude, speed, heading, and ETA with zero connectivity — GPS only, works in airplane mode." />
+<link rel="icon" href="favicon.png" />
+<link rel="apple-touch-icon" href="favicon.png" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="graticule"></div>
+
+<div class="wrap">
+  <nav>
+    <a class="brand" href="#top">
+      <svg class="chevron" viewBox="0 0 100 100"><polygon points="50,15 80,76 50,53 20,76" /></svg>
+      pftracker
+    </a>
+    <a class="nav-link" href="https://github.com/aviato28/pftracker" target="_blank" rel="noopener">
+      Source on GitHub ↗
+    </a>
+  </nav>
+</div>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <svg class="chevron-big" viewBox="0 0 100 100"><polygon points="50,15 80,76 50,53 20,76" /></svg>
+    <h1>Your flight, tracked.<br /><span class="accent">No signal required.</span></h1>
+    <p class="sub">
+      Set your route on the ground. Once you're in the air, pftracker uses
+      nothing but your phone's GPS to show altitude, speed, heading, and ETA —
+      even in airplane mode, at 35,000 feet.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" id="download-btn"
+         href="https://github.com/aviato28/pftracker/releases/latest/download/app-arm64-v8a-release.apk">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0 0l-5-5m5 5l5-5M5 21h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Download for Android
+      </a>
+      <a class="btn btn-ghost" href="https://github.com/aviato28/pftracker" target="_blank" rel="noopener">
+        View on GitHub
+      </a>
+    </div>
+    <div class="release-meta mono" id="release-meta"></div>
+    <div class="other-downloads">
+      <a href="https://github.com/aviato28/pftracker/releases/latest" target="_blank" rel="noopener">
+        Older device? Other architectures &amp; release notes →
+      </a>
+    </div>
+    <p class="install-note">
+      This isn't on the Play Store, so it's a direct APK download. Your phone
+      will ask you to allow installs from this source the first time — that's
+      expected. After that, pftracker checks for and installs its own updates.
+    </p>
+  </div>
+</header>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">How it works</div>
+      <h2>Three steps. One of them needs wifi.</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <h3>Set up on the ground</h3>
+        <p>Pick your route before boarding — enter airports manually or look
+          up your flight number. This is the only step that touches the
+          network at all.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <h3>Track in the air</h3>
+        <p>GPS keeps working in airplane mode. No wifi, no cell service — your
+          position, altitude, and ETA update live on the map for the whole
+          flight.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <h3>Land, or get interrupted</h3>
+        <p>If the app closes by accident mid-flight, reopening it offers to
+          resume the exact same session right where it left off.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">The screen</div>
+      <h2>Glass-cockpit, not clip-art</h2>
+      <p>Dark, minimal, built to be glanced at in a dim cabin — not read.</p>
+    </div>
+    <div class="showcase">
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="phone-status">
+            <span>DXB → JFK</span>
+            <span class="gps-pill">
+              <span class="gps-bars"><span></span><span></span><span></span><span></span></span>
+              GPS
+            </span>
+          </div>
+          <div class="hero-tiles">
+            <div class="hero-tile">
+              <div class="tile-label">Altitude</div>
+              <div class="tile-value">38,050<span class="tile-unit">ft</span></div>
+            </div>
+            <div class="hero-tile">
+              <div class="tile-label">Speed</div>
+              <div class="tile-value">512<span class="tile-unit">kt</span></div>
+            </div>
+          </div>
+          <div class="mini-grid">
+            <div class="mini-tile">
+              <div class="tile-label">Heading</div>
+              <div class="tile-value">274°</div>
+            </div>
+            <div class="mini-tile">
+              <div class="tile-label">ETA</div>
+              <div class="tile-value">6:42</div>
+            </div>
+            <div class="mini-tile">
+              <div class="tile-label">Progress</div>
+              <div class="tile-value">61%</div>
+            </div>
+          </div>
+          <div class="map-strip">
+            <div class="dot dep"></div>
+            <div class="dot arr"></div>
+            <div class="flight-path"></div>
+            <div class="flight-path flown"></div>
+            <svg class="plane-marker" viewBox="0 0 100 100"><polygon points="50,15 80,76 50,53 20,76" /></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Under the hood</div>
+      <h2>Built for the one moment it actually matters</h2>
+    </div>
+    <div class="features">
+      <div class="feature">
+        <h3>Truly offline</h3>
+        <p>The map ships inside the app. No tiles to download, no server to
+          reach, nothing that can fail to load at 35,000 feet.</p>
+      </div>
+      <div class="feature">
+        <h3>Barometric altitude</h3>
+        <p>Reads the phone's own pressure sensor where available, alongside
+          GPS altitude, for a closer match to what the cockpit sees.</p>
+      </div>
+      <div class="feature">
+        <h3>Two ways to set a route</h3>
+        <p>Enter departure and arrival airports manually, or look one up by
+          flight number before you board.</p>
+      </div>
+      <div class="feature">
+        <h3>Every stat, toggleable</h3>
+        <p>Speed, heading, vertical speed, distance, elapsed time, local time
+          at destination, raw coordinates — show only what you want.</p>
+      </div>
+      <div class="feature">
+        <h3>Session resume</h3>
+        <p>An accidental swipe-away mid-flight doesn't lose your track —
+          relaunching picks the same session back up.</p>
+      </div>
+      <div class="feature">
+        <h3>Updates itself</h3>
+        <p>No Play Store round-trip. pftracker checks its own GitHub releases
+          and installs new builds on your say-so.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-row">
+    <span>pftracker is a personal project — not affiliated with any airline
+      or aviation authority.</span>
+    <a href="https://github.com/aviato28/pftracker" target="_blank" rel="noopener">github.com/aviato28/pftracker</a>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+</body>
+</html>
