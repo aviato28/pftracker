@@ -47,9 +47,13 @@ lib/
                   `Polygon`s, ready to render — see "The map" below.
     session/      Persists the in-progress route + start time so a killed
                   app can offer to resume tracking on relaunch.
+    history/      Persists a summary of each completed flight — see
+                  "Flight history" below.
     settings/     Persisted user preferences (shared_preferences).
     update/       Checks GitHub Releases for a newer build and downloads
                   it — see "In-app updates" below.
+    widget/       Pushes altitude/speed to the Android home screen widget
+                  — see "Home screen widget" below.
   state/          FlightSessionController: owns the live session, merges
                   GPS + barometer readings, exposes computed stats.
   presentation/
@@ -57,6 +61,8 @@ lib/
                     type scale in one place.
     setup/         Route setup screen, airport search.
     tracking/       Live tracking screen + the map.
+    history/        Flight history list (past completed flights).
+    guide/          In-app first-time-user guide.
     settings/       Settings screen.
     widgets/        Shared pieces (stat tiles, the pill switch, the GPS
                     signal-strength pill, the nav-chevron mark).
@@ -178,6 +184,39 @@ this app — Samsung/OnePlus/Xiaomi etc. layer their own aggressive app-sleep
 policies on top of stock Android's, and "unmonitored"/"never sleep" for
 this app is worth setting manually.
 
+## Flight history
+
+Every completed flight is summarized and saved locally — see
+`data/history/flight_history_repository.dart` and
+`presentation/history/flight_history_screen.dart`, reachable from the clock
+icon on the setup screen. A flight is saved when tracking ends via the
+tracking screen's back button (not on every app close — that's the same
+in-progress session `ActiveSessionRepository` already handles, see above).
+Only a summary is kept (route, duration, max altitude/speed, distance
+traveled) — never the raw GPS samples — so this stays cheap regardless of
+flight length. "Max altitude"/"max speed" are tracked live during the
+flight (`FlightSessionController.buildHistoryEntry`), not recomputed from
+stored samples, since none are kept.
+
+## Home screen widget
+
+Android only — see `android/app/src/main/kotlin/.../FlightWidgetProvider.kt`
+and `data/widget/flight_widget_service.dart`. Shows the active flight's
+altitude and speed without opening the app; add it from the device's
+widget picker like any other home screen widget. `FlightSessionController`
+pushes an update every 20 seconds while tracking (throttled — GPS fixes
+arrive far more often than that) and once immediately on start; the
+tracking screen's back button clears it back to "No active flight".
+
+Like the rest of the app's background behavior, this can't survive the OS
+killing the app outright — the widget just keeps showing its last pushed
+numbers until tracking resumes, the same "last known state persists"
+approach as the GPS-lost indicator.
+
+**iOS has no equivalent.** A Live Activity needs a Widget Extension target
+added and signed in Xcode, which isn't possible from this project's
+toolchain (no macOS/Xcode available) — see "Build status" below.
+
 ## Permissions
 
 - **Location** (foreground + background): required for tracking to continue
@@ -207,6 +246,11 @@ this app is worth setting manually.
   sure.
 - The AeroDataBox response parsing is best-effort; confirm against a real
   API response.
+- The home screen widget builds cleanly (`FlightWidgetProvider` shows up
+  correctly in the built APK's manifest) but hasn't been visually
+  confirmed on an actual home screen — this sandbox has no launcher/display
+  to add a widget to. Add it from a real device's widget picker once
+  installed to confirm the layout renders as expected.
 
 ## In-app updates
 

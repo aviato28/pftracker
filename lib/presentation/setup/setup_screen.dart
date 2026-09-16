@@ -11,6 +11,7 @@ import '../../domain/airport.dart';
 import '../../domain/flight_route.dart';
 import '../../domain/geo_utils.dart';
 import '../guide/guide_screen.dart';
+import '../history/flight_history_screen.dart';
 import '../settings/settings_screen.dart';
 import '../theme/app_theme.dart';
 import '../tracking/tracking_screen.dart';
@@ -196,6 +197,13 @@ class _SetupScreenState extends State<SetupScreen> {
                           icon: Icons.help_outline_rounded,
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => const GuideScreen()),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        _IconSquareButton(
+                          icon: Icons.history_rounded,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const FlightHistoryScreen()),
                           ),
                         ),
                         const SizedBox(width: 10),

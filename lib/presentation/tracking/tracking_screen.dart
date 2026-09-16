@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../data/history/flight_history_repository.dart';
 import '../../data/session/active_session_repository.dart';
 import '../../data/settings/app_settings.dart';
+import '../../data/widget/flight_widget_service.dart';
 import '../../domain/flight_route.dart';
 import '../../state/flight_session_controller.dart';
 import '../theme/app_theme.dart';
@@ -29,6 +31,9 @@ class TrackingScreen extends StatefulWidget {
 class _TrackingScreenState extends State<TrackingScreen> {
   late final FlightSessionController _controller;
   final _activeSessionRepository = ActiveSessionRepository();
+  final _historyRepository = FlightHistoryRepository();
+  final _widgetService = FlightWidgetService();
+  Timer? _widgetTimer;
   bool _startAttempted = false;
 
   @override
@@ -47,6 +52,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
       if (startUtc != null) {
         unawaited(_activeSessionRepository.save(route: widget.route, sessionStartUtc: startUtc));
       }
+      unawaited(_pushWidgetUpdate());
+      _widgetTimer = Timer.periodic(const Duration(seconds: 20), (_) => _pushWidgetUpdate());
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_controller.locationError ?? 'Could not start tracking.')),
@@ -54,13 +61,28 @@ class _TrackingScreenState extends State<TrackingScreen> {
     }
   }
 
+  Future<void> _pushWidgetUpdate() async {
+    await _widgetService.update(
+      route: widget.route,
+      stats: _controller.stats,
+      unitSystem: context.read<AppSettings>().unitSystem,
+    );
+  }
+
   void _endTracking() {
+    final entry = _controller.buildHistoryEntry();
+    if (entry != null) {
+      unawaited(_historyRepository.add(entry));
+    }
     unawaited(_activeSessionRepository.clear());
+    _widgetTimer?.cancel();
+    unawaited(_widgetService.clear());
     Navigator.of(context).maybePop();
   }
 
   @override
   void dispose() {
+    _widgetTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

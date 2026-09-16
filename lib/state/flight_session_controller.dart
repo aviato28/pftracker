@@ -5,10 +5,14 @@ import 'package:flutter/foundation.dart';
 import '../data/barometer/barometer_service.dart';
 import '../data/location/location_service.dart';
 import '../data/settings/app_settings.dart';
+import '../domain/flight_history_entry.dart';
 import '../domain/flight_route.dart';
 import '../domain/flight_sample.dart';
 import '../domain/flight_stats.dart';
 import '../domain/geo_utils.dart';
+
+const _metersToFeet = 3.28084;
+const _mpsToKmh = 3.6;
 
 enum BarometerAvailability { unknown, available, unavailable }
 
@@ -47,6 +51,8 @@ class FlightSessionController extends ChangeNotifier {
   Timer? _watchdogTimer;
   double? _latestPressureHpa;
   DateTime? _lastSampleAtLocal;
+  double? _maxAltitudeM;
+  double? _maxSpeedMps;
 
   BarometerAvailability barometerAvailability = BarometerAvailability.unknown;
   String? locationError;
@@ -112,6 +118,8 @@ class FlightSessionController extends ChangeNotifier {
     route = flightRoute;
     _sessionStartUtc = resumeSessionStartUtc ?? DateTime.now().toUtc();
     _samples.clear();
+    _maxAltitudeM = null;
+    _maxSpeedMps = null;
     locationError = null;
 
     _positionSub = _locationService.positionStream().listen(
@@ -157,7 +165,39 @@ class FlightSessionController extends ChangeNotifier {
         : sample;
     _samples.add(merged);
     _lastSampleAtLocal = DateTime.now();
+
+    final altitudeM = merged.baroAltitudeM ?? merged.gpsAltitudeM;
+    if (altitudeM != null && (_maxAltitudeM == null || altitudeM > _maxAltitudeM!)) {
+      _maxAltitudeM = altitudeM;
+    }
+    final speedMps = merged.speedMps;
+    if (speedMps != null && (_maxSpeedMps == null || speedMps > _maxSpeedMps!)) {
+      _maxSpeedMps = speedMps;
+    }
+
     notifyListeners();
+  }
+
+  /// A summary of the session so far, for saving to [FlightHistoryRepository]
+  /// once tracking ends — null until there's at least one sample to
+  /// summarize.
+  FlightHistoryEntry? buildHistoryEntry() {
+    final currentRoute = route;
+    final startUtc = _sessionStartUtc;
+    if (currentRoute == null || startUtc == null || _samples.isEmpty) return null;
+
+    return FlightHistoryEntry(
+      departureCode: currentRoute.departure.displayCode,
+      departureCity: currentRoute.departure.city,
+      arrivalCode: currentRoute.arrival.displayCode,
+      arrivalCity: currentRoute.arrival.city,
+      flightNumber: currentRoute.flightNumber,
+      sessionStartUtc: startUtc,
+      sessionEndUtc: DateTime.now().toUtc(),
+      maxAltitudeFt: _maxAltitudeM != null ? _maxAltitudeM! * _metersToFeet : null,
+      maxGroundSpeedKmh: _maxSpeedMps != null ? _maxSpeedMps! * _mpsToKmh : null,
+      distanceTraveledKm: stats?.distanceTraveledKm,
+    );
   }
 
   void stop() {
