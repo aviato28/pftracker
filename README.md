@@ -48,6 +48,8 @@ lib/
     session/      Persists the in-progress route + start time so a killed
                   app can offer to resume tracking on relaunch.
     settings/     Persisted user preferences (shared_preferences).
+    update/       Checks GitHub Releases for a newer build and downloads
+                  it — see "In-app updates" below.
   state/          FlightSessionController: owns the live session, merges
                   GPS + barometer readings, exposes computed stats.
   presentation/
@@ -205,6 +207,48 @@ this app is worth setting manually.
   sure.
 - The AeroDataBox response parsing is best-effort; confirm against a real
   API response.
+
+## In-app updates
+
+There's no Play Store distribution, so the app checks GitHub Releases on
+this (private) repo itself and can download + launch the installer for a
+newer build — see `data/update/app_update_service.dart` and
+`presentation/widgets/update_prompt.dart`. Checked once on Setup-screen
+launch (silently, best-effort — never blocks or errors visibly) and
+on-demand from Settings → About → "Check for updates".
+
+Because the repo is private, this needs a GitHub token to call the API and
+download release assets. **Never commit a real token** — it's baked in at
+build time only:
+
+```
+flutter build apk --release --split-per-abi \
+  --dart-define=GITHUB_UPDATE_TOKEN=<a fine-grained, read-only, single-repo token>
+```
+
+Without that define, `AppUpdateService.checkForUpdate()` always returns
+null — update checks are simply disabled, not broken.
+
+**Creating the token** (one-time, at
+[github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new)):
+repository access → only `aviato28/pftracker`; repository permissions →
+Contents: Read-only. That's the minimum needed to read release metadata
+and download release assets.
+
+**Releasing an update** — the app finds it via `GET
+/repos/aviato28/pftracker/releases/latest` and compares build numbers, so:
+
+1. Bump `version:` in `pubspec.yaml` (`X.Y.Z+N` — `N`, the part after
+   `+`, is what actually gets compared; it must increase every release).
+2. Build with the `--dart-define` above.
+3. Tag the commit `vX.Y.Z+N` — **matching pubspec.yaml exactly** — and
+   create a GitHub Release from that tag with the built APK(s) attached as
+   release assets and the changelog in the release body (shown to the
+   user before they download). `AppUpdateService._buildNumberFromTag`
+   parses the `+N` suffix; a tag without one is invisible to the app.
+4. Any `.apk` among the release's assets is picked up — attaching just
+   the arm64 build is enough for essentially any real device from the
+   last ~8 years.
 
 ## Running
 

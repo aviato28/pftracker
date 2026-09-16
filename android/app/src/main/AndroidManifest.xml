@@ -6,6 +6,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- Lets the app launch the system installer for an update APK it
+         downloaded itself (see data/update/). The OS still requires the
+         user to grant "install unknown apps" for pftracker the first time. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
         android:label="pftracker"
         android:name="${applicationName}"

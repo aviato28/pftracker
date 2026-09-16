@@ -5,6 +5,8 @@ import '../../data/airports/airport_repository.dart';
 import '../../data/routes/route_lookup_service.dart';
 import '../../data/session/active_session_repository.dart';
 import '../../data/settings/app_settings.dart';
+import '../../data/update/app_update_service.dart';
+import '../../data/update/update_info.dart';
 import '../../domain/airport.dart';
 import '../../domain/flight_route.dart';
 import '../../domain/geo_utils.dart';
@@ -12,6 +14,7 @@ import '../settings/settings_screen.dart';
 import '../theme/app_theme.dart';
 import '../tracking/tracking_screen.dart';
 import '../widgets/nav_chevron.dart';
+import '../widgets/update_prompt.dart';
 import 'airport_search_field.dart';
 
 /// Purely for the route-preview card's rough time estimate — we don't
@@ -36,11 +39,25 @@ class _SetupScreenState extends State<SetupScreen> {
   FlightRoute? _route;
   bool _lookingUp = false;
   String? _lookupError;
+  UpdateInfo? _availableUpdate;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForActiveSession());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForActiveSession();
+      _checkForUpdate();
+    });
+  }
+
+  Future<void> _checkForUpdate() async {
+    final service = AppUpdateService();
+    final update = await service.checkForUpdate();
+    service.dispose();
+    if (!mounted || update == null) return;
+    final settings = context.read<AppSettings>();
+    if (update.buildNumber <= settings.dismissedUpdateBuild) return;
+    setState(() => _availableUpdate = update);
   }
 
   @override
@@ -151,6 +168,14 @@ class _SetupScreenState extends State<SetupScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
               children: [
+                if (_availableUpdate != null)
+                  UpdateBanner(
+                    info: _availableUpdate!,
+                    onDismiss: () {
+                      context.read<AppSettings>().dismissedUpdateBuild = _availableUpdate!.buildNumber;
+                      setState(() => _availableUpdate = null);
+                    },
+                  ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

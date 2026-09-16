@@ -8,6 +8,7 @@ const _enabledStatsKey = 'enabled_stats';
 const _qnhHpaKey = 'qnh_hpa';
 const _flightApiKeyKey = 'flight_api_key';
 const _unitSystemKey = 'unit_system';
+const _dismissedUpdateBuildKey = 'dismissed_update_build';
 
 /// Persisted user preferences: which stats are shown, the QNH reference
 /// pressure for barometric altitude, and the optional flight-lookup API
@@ -78,6 +79,16 @@ class AppSettings extends ChangeNotifier {
 
   set unitSystem(UnitSystem value) {
     _prefs.setString(_unitSystemKey, value.name);
+    notifyListeners();
+  }
+
+  /// The build number of an available update the user has already said
+  /// "later" to, so the setup screen doesn't nag about the same release
+  /// on every launch. A newer release still prompts again.
+  int get dismissedUpdateBuild => _prefs.getInt(_dismissedUpdateBuildKey) ?? 0;
+
+  set dismissedUpdateBuild(int value) {
+    _prefs.setInt(_dismissedUpdateBuildKey, value);
     notifyListeners();
   }
 }

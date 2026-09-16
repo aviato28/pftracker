@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/settings/app_settings.dart';
+import '../../data/update/app_update_service.dart';
 import '../../domain/stat_id.dart';
 import '../../domain/unit_system.dart';
 import '../theme/app_theme.dart';
 import '../widgets/pill_switch.dart';
+import '../widgets/update_prompt.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -17,6 +20,8 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late final TextEditingController _qnhController;
   late final TextEditingController _apiKeyController;
+  PackageInfo? _packageInfo;
+  bool _checkingForUpdate = false;
 
   @override
   void initState() {
@@ -24,6 +29,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final settings = context.read<AppSettings>();
     _qnhController = TextEditingController(text: settings.qnhHpa.toStringAsFixed(2));
     _apiKeyController = TextEditingController(text: settings.flightApiKey);
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _packageInfo = info);
+    });
+  }
+
+  Future<void> _checkForUpdate() async {
+    setState(() => _checkingForUpdate = true);
+    final service = AppUpdateService();
+    final update = await service.checkForUpdate();
+    service.dispose();
+    if (!mounted) return;
+    setState(() => _checkingForUpdate = false);
+
+    if (update == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("You're up to date.")),
+      );
+      return;
+    }
+
+    final download = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text('Update available — ${update.versionTag}'),
+        content: update.releaseNotes.isEmpty
+            ? null
+            : Text(update.releaseNotes, style: const TextStyle(color: AppColors.textMuted)),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Not now')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Download')),
+        ],
+      ),
+    );
+    if (download == true && mounted) {
+      await startUpdateDownload(context, update);
+    }
   }
 
   @override
@@ -151,6 +193,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const Text(
                   'Optional — manual airport entry always works without one.',
                   style: TextStyle(fontSize: 12, color: AppColors.textFaint, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+          const _SectionLabel('About'),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _packageInfo == null
+                        ? 'Loading version…'
+                        : 'Version ${_packageInfo!.version} (build ${_packageInfo!.buildNumber})',
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                OutlinedButton(
+                  onPressed: _checkingForUpdate ? null : _checkForUpdate,
+                  child: _checkingForUpdate
+                      ? const SizedBox(
+                          height: 14,
+                          width: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Check for updates'),
                 ),
               ],
             ),
