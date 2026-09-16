@@ -232,6 +232,16 @@ public, so this needs no authentication and no build-time secret.
    the arm64 build is enough for essentially any real device from the
    last ~8 years.
 
+**Gotcha**: `flutter build apk --split-per-abi` multiplies each APK's own
+`versionCode` by its ABI (arm64 becomes `2000 + N`) unless you also pass
+`-P force-version-code-ignoring-abi=true` — the release workflow does this
+already. Without it, the installed app's `packageInfo.buildNumber` is that
+inflated number, not pubspec's `N`, and it'll compare as "newer than"
+every real future release forever, so `AppUpdateService` reports no
+update even though one exists. Any release built without that flag needs
+a one-time manual sideload of a build that has it; every release after
+that (with the flag) compares correctly on its own.
+
 ## Running
 
 ```

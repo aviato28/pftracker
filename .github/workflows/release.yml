@@ -48,7 +48,11 @@ jobs:
 
       - name: Build release APKs
         if: steps.check.outputs.exists == 'false'
-        run: flutter build apk --release --split-per-abi
+        # Without -P force-version-code-ignoring-abi=true, --split-per-abi
+        # multiplies each APK's versionCode by its ABI (arm64 becomes
+        # 2000+N) — fine for the Play Store, but it breaks AppUpdateService's
+        # plain buildNumber comparison against pubspec.yaml's `+N`.
+        run: flutter build apk --release --split-per-abi -P force-version-code-ignoring-abi=true
 
       - name: Publish release
         if: steps.check.outputs.exists == 'false'
