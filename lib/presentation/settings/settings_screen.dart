@@ -235,6 +235,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 11.5, color: AppColors.textDisabled, height: 1.6),
           ),
+          const SizedBox(height: 14),
+          const Text(
+            'Made by Naman Bansal 🇮🇳',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11.5, color: AppColors.textFaint, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );

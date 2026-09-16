@@ -506,6 +506,16 @@ footer {
   color: var(--text-muted);
 }
 
+.footer-credit {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-low);
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 @media (max-width: 760px) {
   .steps,
   .features {
