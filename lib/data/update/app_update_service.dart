@@ -7,14 +7,6 @@ import 'package:path_provider/path_provider.dart';
 
 import 'update_info.dart';
 
-/// GitHub personal access token baked in at build time via
-/// `--dart-define=GITHUB_UPDATE_TOKEN=...` — never commit an actual token.
-/// This repo is private, so checking for/downloading releases needs auth;
-/// use a fine-grained token scoped to just this repo with Contents:
-/// Read-only. Building without the define simply disables update checks
-/// (see [AppUpdateService.checkForUpdate]).
-const _updateToken = String.fromEnvironment('GITHUB_UPDATE_TOKEN');
-
 const _repoOwner = 'aviato28';
 const _repoName = 'pftracker';
 
@@ -22,29 +14,27 @@ const _repoName = 'pftracker';
 /// running, and downloads it. There is no Play Store distribution here,
 /// so this is the update mechanism — see README.md ("Releasing an
 /// update") for how a release needs to be tagged for this to find it.
+/// The repo is public, so this needs no authentication at all.
 class AppUpdateService {
   final http.Client _client;
   AppUpdateService({http.Client? client}) : _client = client ?? http.Client();
 
-  Map<String, String> get _authHeaders => {
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        if (_updateToken.isNotEmpty) 'Authorization': 'Bearer $_updateToken',
-      };
+  static const _apiHeaders = {
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
 
   /// Returns the latest release's info if it's newer than the running
-  /// build, or null if up to date, unreachable, or no token was baked in
-  /// at build time. Always best-effort — an update check must never block
-  /// or interrupt using the app.
+  /// build, or null if up to date or unreachable. Always best-effort — an
+  /// update check must never block or interrupt using the app.
   Future<UpdateInfo?> checkForUpdate() async {
-    if (_updateToken.isEmpty) return null;
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
 
       final response = await _client.get(
         Uri.https('api.github.com', '/repos/$_repoOwner/$_repoName/releases/latest'),
-        headers: _authHeaders,
+        headers: _apiHeaders,
       );
       if (response.statusCode != 200) return null;
 
@@ -67,7 +57,7 @@ class AppUpdateService {
       return UpdateInfo(
         versionTag: tag,
         buildNumber: latestBuild,
-        downloadApiUrl: apkAsset['url'] as String,
+        downloadApiUrl: apkAsset['browser_download_url'] as String,
         sizeBytes: (apkAsset['size'] as num?)?.toInt() ?? 0,
         releaseNotes: (json['body'] as String?)?.trim() ?? '',
       );
@@ -97,7 +87,6 @@ class AppUpdateService {
     if (await file.exists()) await file.delete();
 
     final request = http.Request('GET', Uri.parse(info.downloadApiUrl));
-    request.headers.addAll({..._authHeaders, 'Accept': 'application/octet-stream'});
     final response = await _client.send(request);
     if (response.statusCode != 200) {
       throw Exception('Download failed (HTTP ${response.statusCode})');
