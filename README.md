@@ -286,6 +286,23 @@ update even though one exists. Any release built without that flag needs
 a one-time manual sideload of a build that has it; every release after
 that (with the flag) compares correctly on its own.
 
+**Release signing**: `android/app/build.gradle.kts` signs release builds
+with a dedicated key at `android/app/pftracker-release.jks` (config in
+`android/key.properties`) — both gitignored, never committed. Falls back
+to the debug keystore if either is missing, which is exactly the bug this
+replaced: the Android SDK auto-generates a fresh, randomly-keyed debug
+keystore on every machine (including every GitHub Actions runner), so
+signing releases with it meant every CI build had a different
+certificate, and Android refuses to install an "update" whose signature
+doesn't match what's already installed ("app not installed"). The release
+workflow reconstructs both gitignored files at build time from four repo
+secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
+`ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`) so the real key material
+never touches git history. A release built with a different key than the
+one before it (e.g. the very first signed release, or a lost/rotated key)
+still needs one manual sideload — same one-time-reseed pattern as the
+versionCode gotcha above.
+
 ## Running
 
 ```

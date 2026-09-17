@@ -1,7 +1,26 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// A stable, dedicated release key — not the debug keystore, which the
+// Android SDK auto-generates fresh (with a different random key) on every
+// machine, including every GitHub Actions runner. Signing releases with
+// that meant every CI build had a different certificate, so Android
+// refused every "update" with "app not installed" (signature mismatch).
+// This keystore is intentionally committed to the repo rather than kept
+// as a secret: this app is self-distributed outside the Play Store with
+// no purchases or user accounts to protect, so the only thing this key
+// protects is "does a new build install over the old one" — there's
+// nothing here worth the ceremony of CI secrets for a personal project.
+// Don't reuse it for anything that actually needs to stay private.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(keystorePropertiesFile.inputStream())
 }
 
 android {
@@ -29,11 +48,28 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = rootProject.file("app/${keystoreProperties["storeFile"]}")
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Falls back to debug signing if key.properties/the keystore is
+            // missing (e.g. a fresh clone before either exists) so `flutter
+            // run --release` still works, but every real release build in
+            // this repo has both committed and uses the stable key above.
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

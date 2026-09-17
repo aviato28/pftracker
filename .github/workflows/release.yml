@@ -46,6 +46,29 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up release signing key
+        if: steps.check.outputs.exists == 'false'
+        # Without this, `android/app/build.gradle.kts` falls back to the
+        # debug keystore — which the Android SDK auto-generates fresh
+        # (different random key) on every runner, so every release would
+        # get a different signing certificate and Android would refuse to
+        # install any of them as an "update" over the last ("app not
+        # installed"). These secrets are written to gitignored files that
+        # only ever exist in this ephemeral runner, never committed.
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/pftracker-release.jks
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=pftracker-release.jks
+          EOF
+
       - name: Build release APKs
         if: steps.check.outputs.exists == 'false'
         # Without -P force-version-code-ignoring-abi=true, --split-per-abi
