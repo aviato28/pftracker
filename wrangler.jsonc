@@ -5,5 +5,10 @@
   "assets": {
     "directory": "./web",
     "binding": "ASSETS"
-  }
+  },
+  // Shared with nbansal28-site and nbansal28-admin — same binding name, same namespace
+  // id — so all three workers read/write one set of hit counters.
+  "kv_namespaces": [
+    { "binding": "KV_BINDING", "id": "d1ac3b74f0e04488914979b008d0112e" }
+  ]
 }

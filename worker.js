@@ -37,12 +37,12 @@ async function resolveDownload() {
   return target;
 }
 
-// Plain KV hit counter (binding ANALYTICS, shared with nbansal28-site and
+// Plain KV hit counter (binding KV_BINDING, shared with nbansal28-site and
 // admin.nbansal28.com) — no-ops until that binding is actually configured.
 function trackEvent(env, ctx, key) {
-  if (!env.ANALYTICS) return;
+  if (!env.KV_BINDING) return;
   ctx.waitUntil(
-    env.ANALYTICS.get(key).then((v) => env.ANALYTICS.put(key, String((v ? parseInt(v, 10) || 0 : 0) + 1)))
+    env.KV_BINDING.get(key).then((v) => env.KV_BINDING.put(key, String((v ? parseInt(v, 10) || 0 : 0) + 1)))
   );
 }
 
