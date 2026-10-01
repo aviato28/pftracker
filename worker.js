@@ -37,11 +37,28 @@ async function resolveDownload() {
   return target;
 }
 
+// Plain KV hit counter (binding ANALYTICS, shared with nbansal28-site and
+// admin.nbansal28.com) — no-ops until that binding is actually configured.
+function trackEvent(env, ctx, key) {
+  if (!env.ANALYTICS) return;
+  ctx.waitUntil(
+    env.ANALYTICS.get(key).then((v) => env.ANALYTICS.put(key, String((v ? parseInt(v, 10) || 0 : 0) + 1)))
+  );
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    if (url.pathname === "/" && request.method === "GET") {
+      trackEvent(env, ctx, "visits:pftracker");
+    }
+
     if (url.pathname === "/download") {
+      // Counted on every hit, not just cache misses below — most real downloads inside
+      // the 10-minute edge-cache window would otherwise never reach the fresh-resolve path.
+      if (request.method === "GET") trackEvent(env, ctx, "downloads:pftracker");
+
       const cache = caches.default;
       const cacheKey = new Request(url.toString(), request);
 
